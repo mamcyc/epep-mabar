@@ -1,3 +1,27 @@
+local Config = {
+    World = {
+        Count = 1,
+        Letter = 12,
+        Number = true
+    },
+    Design = {
+        Mode = "both", --sl wl both
+        Jammer = true,
+        Door = 12,
+        Entrance = 7164,
+        Block = 2,
+        DoorID = "vneinfef"
+    },
+    Storage = {
+        StorageWorld = "xcellpik",
+        StorageWorldID = "aduh1w81",
+    },
+    Webhook = {
+        Link = "",
+        ID = ""
+    }
+}
+
 local Count = Config.World.Count
 local Letter = Config.World.Letter
 local Number = Config.World.Number
