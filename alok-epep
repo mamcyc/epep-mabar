@@ -1,0 +1,472 @@
+local Config = {
+    World = {
+        Count = 1,
+        Letter = 12,
+        Number = true
+    },
+    Design = {
+        Mode = "both", --sl wl both
+        Jammer = true,
+        Door = 12,
+        Entrance = 7164,
+        Block = 2,
+        DoorID = "vneinfef"
+    },
+    Storage = {
+        StorageWorld = "xcellpik",
+        StorageWorldID = "aduh1w81",
+    },
+    Webhook = {
+        Link = "",
+        ID = ""
+    }
+}
+local Count = Config.World.Count
+local Letter = Config.World.Letter
+local Number = Config.World.Number
+local Mode = Config.Design.Mode:upper()
+local Jammer = Config.Design.Jammer
+local Door = Config.Design.Door
+local Entrance = Config.Design.Entrance
+local Block = Config.Design.Block
+local DoorID = Config.Design.DoorID
+local WorldStorage = Config.Storage.StorageWorld
+local WorldStorageID = Config.Storage.StorageWorldID
+local Link = Config.Webhook.Link
+local IDs = Config.Webhook.ID
+local bot = getBot()
+local Stuf = { {ID = Entrance, Co = (Count * 2)},{ID = Door, Co = Count}}
+if Jammer then
+    table.insert(Stuf, {ID = 226, Co = Count})
+end
+if Mode == "SL" then
+    table.insert(Stuf, {ID = 202, Co = Count})
+    if Jammer then
+        table.insert(Stuf, {ID = Block, Co = Count})
+    else
+        table.insert(Stuf, {ID = Block, Co = (Count * 2)})
+    end
+elseif Mode == "WL" then
+    table.insert(Stuf, {ID = 242, Co = Count})
+    if Jammer then
+        table.insert(Stuf, {ID = Block, Co = Count })
+    else
+        table.insert(Stuf, {ID = Block, Co = (Count * 2)})
+    end
+elseif Mode == "BOTH" then
+    table.insert(Stuf, {ID = 242, Co = Count})
+    table.insert(Stuf, {ID = 202, Co = Count})
+    if Jammer then
+        table.insert(Stuf, {ID = Block, Co = Count })
+    else
+        table.insert(Stuf, {ID = Block, Co = Count * 2 })
+    end
+end
+local function drop(ItemID,minIngre)
+    bot:sendPacket(2,"action|drop\n|itemID|"..ItemID)
+    sleep(500)
+    bot:sendPacket(2,"action|dialog_return\ndialog_name|drop_item\nitemID|"..ItemID.."|\ncount|"..bot:getInventory():findItem(ItemID)-minIngre)
+    sleep(1250)
+end
+local function take(ids, Create)
+    while bot:getInventory():findItem(ids) < Create do
+        for _, obj in pairs(bot:getWorld():getObjects()) do
+            if obj.id == ids then
+                bot:findPath(math.floor(obj.x / 32), math.floor(obj.y / 32))
+                sleep(250)
+                bot:collect(1)
+            end
+            if bot:getInventory():findItem(ids) >= Create then
+                break
+            end
+        end
+    end
+end
+local function warp(world, id)
+    cok = 0
+    while not bot:isInWorld(world:upper()) and not nuked do
+        while bot.status ~= BotStatus.online or bot:getPing() == 0 do
+            sleep(1000)
+        end
+        if id ~= "" then
+            bot:sendPacket(3, "action|join_request\nname|" .. world:upper() .. "|" .. id:upper() .. "\ninvitedWorld|0")
+        else
+            bot:sendPacket(3, "action|join_request\nname|" .. world:upper() .. "\ninvitedWorld|0")
+        end
+        sleep(10000)
+        if cok == 5 then
+            for i = 1, 300 do
+                sleep(1000)
+                if bot:isInWorld(world:upper()) then
+                    break
+                end
+            end
+            cok = 0
+        else
+            cok = cok + 1
+        end
+    end
+    if id ~= "" and bot:getWorld():getTile(bot.x, bot.y).fg == 6 and not nuked then
+        while bot.status ~= BotStatus.online or bot:getPing() == 0 do
+            sleep(1000)
+        end
+        for i = 1, 3 do
+            if getTile(bot.x, bot.y).fg == 6 then
+                bot:sendPacket(
+                    3,
+                    "action|join_request\nname|" .. world:upper() .. "|" .. id:upper() .. "\ninvitedWorld|0"
+                )
+                sleep(2000)
+            end
+        end
+    end
+end
+local function webhooks(text)
+local webhook = Webhook.new(Link)
+webhook.embed1.use = true
+webhook.embed1.title = "Result -  DirtFarm Design"
+webhook.embed1.description = "<:globe:1011929997679796254>WORLD: **"..text.."**\n<:visitz:1213430819998408734>DOOR: ||"..DoorID.."||"
+webhook.embed1.thumbnail = "https://cdn.discordapp.com/attachments/1024312738551443456/1218021025787154442/IMG-20240315-WA0049.png?ex=6606257a&is=65f3b07a&hm=a28a43e1d7091dcde289b5a09df396f11589210e2b6f8f1d7ea249b51080a301&"
+webhook.embed1.footer.text = "Cema Script | Find World\n"..os.date("!%b-%d-%Y, %I:%M %p", os.time() + 7 * 60 * 60)
+if IDs ~= "" then
+    webhook:edit(IDs)
+else
+    webhook:send()
+end
+end
+local function Locked()
+    for _, tile in pairs(getTiles()) do
+        if tile.fg == 6 then
+            local PosX = tile.x
+            local PosY = tile.y
+            for x = -1, 1, 1 do
+                while getTile(PosX + x, PosY + 2).fg ~= 0 or getTile(PosX + x, PosY + 2).bg ~= 0 do
+                    bot:hit(PosX + x, PosY + 2)
+                    sleep(200)
+                    if getTile(PosX + x, PosY + 2).fg == 0 and getTile(PosX + x, PosY + 2).bg == 0 then
+                        break
+                    end
+                end
+            end
+            local x = 2
+            while getTile(PosX + x, PosY + 1).fg ~= 0 or getTile(PosX + x, PosY + 1).bg ~= 0 do
+                bot:hit(PosX + x, PosY + 1)
+                sleep(200)
+                if getTile(PosX + x, PosY + 1).fg == 0 and getTile(PosX + x, PosY + 1).bg == 0 then
+                    break
+                end
+            end
+            local x = -2
+            while getTile(PosX + x, PosY + 1).fg ~= 0 or getTile(PosX + x, PosY + 1).bg ~= 0 do
+                bot:hit(PosX + x, PosY + 1)
+                sleep(200)
+                if getTile(PosX + x, PosY + 1).fg == 0 and getTile(PosX + x, PosY + 1).bg == 0 then
+                    break
+                end
+            end
+            if Mode == "SL" then
+                -- lock
+                while getTile(PosX, PosY - 1).fg ~= 202 do
+                    bot:place(PosX, PosY - 1, 202)
+                    sleep(200)
+                end
+                --jammer
+                if Jammer then
+                    while getTile(PosX - 1, PosY - 1).fg ~= 226 do
+                        bot:place(PosX - 1, PosY - 1, 226)
+                        sleep(200)
+                    end
+                    if getTile(PosX - 1, PosY - 1).fg == 226 then
+                        bot:hit(PosX-1, PosY - 1)
+                        sleep(1500)
+                    end
+                else
+                    while getTile(PosX - 1, PosY - 1).fg ~= Block do
+                        bot:place(PosX - 1, PosY - 1, Block)
+                        sleep(200)
+                    end
+                end
+                -- door
+                bot:moveTo(-1,0)
+                sleep(100)
+                while getTile(PosX - 1, PosY + 1).fg ~= 0 do
+                    bot:hit(PosX - 1, PosY + 1)
+                    sleep(200)
+                end
+                while getTile(PosX - 1, PosY + 1).fg ~= Door do
+                    bot:place(PosX - 1, PosY + 1, Door)
+                    sleep(200)
+                end
+                bot:findPath(PosX,PosY)
+                -- put Block
+                while getTile(PosX + 1, PosY - 1).fg ~= Block do
+                    bot:place(PosX + 1, PosY - 1, Block)
+                    sleep(200)
+                end
+                while getTile(PosX + 1, PosY).fg ~= Entrance do
+                    bot:place(PosX + 1, PosY, Entrance)
+                    sleep(200)
+                end
+                while getTile(PosX - 1, PosY).fg ~= Entrance do
+                    bot:place(PosX - 1, PosY, Entrance)
+                    sleep(200)
+                end
+                for _, tile in pairs(getTiles()) do
+                    if tile.fg == 202 then
+                        bot:findPath(tile.x, tile.y + 1)
+                        sleep(500)
+                        bot:wrench(tile.x, tile.y)
+                        sleep(250)
+                        bot:sendPacket(2,"action|dialog_return\n|dialog_name|lock_edit\ntilex|" ..tile.x .."|\ntiley|" ..(tile.y) .."|\nbuttonClicked|recalcLock\n\ncheckbox_public|0\ncheckbox_ignore|1")
+                        sleep(1250)
+                    end
+                end
+                for _, tile in pairs(getTiles()) do
+                    if tile.fg == Door then
+                        bot:findPath(tile.x, tile.y)
+                        sleep(500)
+                        bot:wrench(tile.x, tile.y)
+                        sleep(250)
+                        bot:sendPacket(
+                            2,
+                            "action|dialog_return\ndialog_name|door_edit\ntilex|" ..
+                                tile.x ..
+                                    "|\ntiley|" ..
+                                        tile.y ..
+                                            "|\ndoor_name|kon\ndoor_target|\ndoor_id|" .. DoorID .. "\ncheckbox_locked|1"
+                        )
+                        sleep(1250)
+                    end
+                end
+            elseif Mode == "WL" then
+                -- lock
+                while getTile(PosX, PosY - 1).fg ~= 242 do
+                    bot:place(PosX, PosY - 1, 242)
+                    sleep(200)
+                end
+                --jammer
+                if Jammer then
+                    while getTile(PosX - 1, PosY - 1).fg ~= 226 do
+                        bot:place(PosX - 1, PosY - 1, 226)
+                        sleep(200)
+                    end
+                    if getTile(PosX - 1, PosY - 1).fg == 226 then
+                        bot:hit(PosX-1, PosY - 1)
+                        sleep(1500)
+                    end
+                else
+                    while getTile(PosX - 1, PosY - 1).fg ~= Block do
+                        bot:place(PosX - 1, PosY - 1, Block)
+                        sleep(200)
+                    end
+                end
+                -- door
+                bot:moveTo(-1,0)
+                sleep(100)
+                while getTile(PosX - 1, PosY + 1).fg ~= 0 do
+                    bot:hit(PosX - 1, PosY + 1)
+                    sleep(200)
+                end
+                while getTile(PosX - 1, PosY + 1).fg ~= Door do
+                    bot:place(PosX - 1, PosY + 1, Door)
+                    sleep(200)
+                end
+                bot:findPath(PosX,PosY)
+
+                -- put Block
+                while getTile(PosX + 1, PosY - 1).fg ~= Block do
+                    bot:place(PosX + 1, PosY - 1, Block)
+                    sleep(200)
+                end
+                while getTile(PosX + 1, PosY).fg ~= Entrance do
+                    bot:place(PosX + 1, PosY, Entrance)
+                    sleep(200)
+                end
+                while getTile(PosX - 1, PosY).fg ~= Entrance do
+                    bot:place(PosX - 1, PosY, Entrance)
+                    sleep(200)
+                end
+                for _, tile in pairs(getTiles()) do
+                    if tile.fg == Door then
+                        bot:findPath(tile.x, tile.y)
+                        sleep(500)
+                        bot:wrench(tile.x, tile.y)
+                        sleep(250)
+                        bot:sendPacket(
+                            2,
+                            "action|dialog_return\ndialog_name|door_edit\ntilex|" ..
+                                tile.x ..
+                                    "|\ntiley|" ..
+                                        tile.y ..
+                                            "|\ndoor_name|kon\ndoor_target|\ndoor_id|" .. DoorID .. "\ncheckbox_locked|1"
+                        )
+                        sleep(1250)
+                    end
+                end
+            elseif Mode == "BOTH" then
+                -- lock
+                while getTile(PosX, PosY - 1).fg ~= 202 do
+                    bot:place(PosX, PosY - 1, 202)
+                    sleep(200)
+                end
+                while getTile(PosX + 1, PosY + 1).fg ~= 0 do
+                    bot:hit(PosX + 1, PosY + 1)
+                    sleep(200)
+                end
+                bot:findPath(PosX + 1, PosY )
+                sleep(1500)
+                while getTile(PosX + 1, PosY + 1).fg ~= 242 do
+                    bot:place(PosX + 1, PosY + 1, 242)
+                    sleep(200)
+                end
+                bot:findPath(PosX, PosY )
+                sleep(1500)
+                --jammer
+                if Jammer then
+                    while getTile(PosX - 1, PosY - 1).fg ~= 226 do
+                        bot:place(PosX - 1, PosY - 1, 226)
+                        sleep(200)
+                    end
+                    if getTile(PosX - 1, PosY - 1).fg == 226 then
+                        bot:hit(PosX-1, PosY - 1)
+                        sleep(1500)
+                    end
+                else
+                    while getTile(PosX - 1, PosY - 1).fg ~= Block do
+                        bot:place(PosX - 1, PosY - 1, Block)
+                        sleep(200)
+                    end
+                end
+                -- door
+                bot:moveTo(-1,0)
+                sleep(100)
+                while getTile(PosX - 1, PosY + 1).fg ~= 0 do
+                    bot:hit(PosX - 1, PosY + 1)
+                    sleep(200)
+                end
+                while getTile(PosX - 1, PosY + 1).fg ~= Door do
+                    bot:place(PosX - 1, PosY + 1, Door)
+                    sleep(200)
+                end
+                bot:findPath(PosX,PosY)
+
+                -- put Block
+                while getTile(PosX + 1, PosY - 1).fg ~= Block do
+                    bot:place(PosX + 1, PosY - 1,Block)
+                    sleep(200)
+                end
+                while getTile(PosX + 1, PosY).fg ~= Entrance do
+                    bot:place(PosX + 1, PosY, Entrance)
+                    sleep(200)
+                end
+                while getTile(PosX - 1, PosY).fg ~= Entrance do
+                    bot:place(PosX - 1, PosY, Entrance)
+                    sleep(200)
+                end
+                for _, tile in pairs(getTiles()) do
+                    if tile.fg == 202 then
+                        bot:findPath(tile.x, tile.y + 1)
+                        sleep(500)
+                        bot:wrench(tile.x, tile.y)
+                        sleep(250)
+                        bot:sendPacket(2,"action|dialog_return\n|dialog_name|lock_edit\ntilex|" ..tile.x .."|\ntiley|" ..(tile.y) .."|\nbuttonClicked|recalcLock\n\ncheckbox_public|0\ncheckbox_ignore|1")
+                        sleep(1250)
+                    end
+                end
+                for _, tile in pairs(getTiles()) do
+                    if tile.fg == 242 then
+                        bot:findPath(tile.x, tile.y + 1)
+                        sleep(500)
+                        bot:wrench(tile.x, tile.y)
+                        sleep(250)
+                        bot:sendPacket(2,"action|dialog_return\ndialog_name|lock_edit\ntilex|" ..tile.x .."|\ntiley|" ..tile.y .."|\ncheckbox_public|1\ncheckbox_disable_music|0\ntempo|100\ncheckbox_disable_music_render|0\ncheckbox_set_as_home_world|0\nminimum_entry_level|1")
+                        sleep(1250)
+                    end
+                end
+                for _, tile in pairs(getTiles()) do
+                    if tile.fg == Door then
+                        bot:findPath(tile.x, tile.y)
+                        sleep(500)
+                        bot:wrench(tile.x, tile.y)
+                        sleep(250)
+                        bot:sendPacket(
+                            2,
+                            "action|dialog_return\ndialog_name|door_edit\ntilex|" ..
+                                tile.x ..
+                                    "|\ntiley|" ..
+                                        tile.y ..
+                                            "|\ndoor_name|kon\ndoor_target|\ndoor_id|" .. DoorID .. "\ncheckbox_locked|1"
+                        )
+                        sleep(1250)
+                    end
+                end
+            end
+        end
+    end
+end
+local function takeStuff()
+    warp(WorldStorage, WorldStorageID)
+    sleep(100)
+    for _, itm in pairs(Stuf) do
+        take(itm.ID, itm.Co)
+        sleep(500)
+    end
+    for _, itm in pairs(Stuf) do
+        if bot:getInventory():findItem(itm.ID) > itm.Co then
+            bot:moveTo(-1, 0)
+            sleep(100)
+            bot:setDirection(false)
+            drop(itm.ID,itm.Co)
+            sleep(250)
+        end
+    end
+
+end
+
+local function generateRandomWorld(length)
+    local characters
+    local include_numbers = Number
+    if include_numbers then
+        characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    else
+        characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    end
+    local randomWorld = ""
+    for i = 1, length do
+        local randomIndex = math.random(1, #characters)
+        randomWorld = randomWorld .. string.sub(characters, randomIndex, randomIndex)
+    end
+    return randomWorld
+end
+
+local function Find()
+    ::ulang::
+    local world = generateRandomWorld(Letter)
+    bot:sendPacket(3, "action|join_request\nname|" .. world .. "\ninvitedWorld|0")
+    sleep(5000)
+    if bot:isInWorld(world:upper()) then
+        for _, check in pairs(bot:getWorld():getTiles()) do
+            if check.fg == 242 or check.fg == 9640 or check.fg == 202 or check.fg == 204 or check.fg == 206 then
+                goto ulang
+            end
+        end
+    else
+        goto ulang
+    end
+end
+local function tulis(text)
+    file = io.open("hasil.txt", "a")
+    file:write(text .. "\n")
+    file:close()
+end
+local function main()
+    takeStuff()
+    for i = 1, Count do
+        Find()
+        Locked()
+        webhooks(bot:getWorld().name)
+        tulis(bot:getWorld().name.."|"..DoorID)
+    end
+end
+
+main()
