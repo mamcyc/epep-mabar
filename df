@@ -1,0 +1,582 @@
+indexBot = 0
+ListDone = {}
+jmlBot = #getBots()
+for i, botz in pairs(getBots()) do
+    if botz.name:upper() == bot.name:upper() then
+        indexBot = i - 1
+        abc = i
+        break
+    end
+    sleep(1000)
+end
+UseList = Bots[abc].UseList
+WorldList = Bots[abc].WorldList
+IDDirtFarm =Bots[abc].IDDirtFarm
+
+if jmlBot % 2 == 0 then
+    jmlBot = jmlBot + 1
+end
+
+
+
+
+
+function punch(x,y)
+    return bot:hit(bot.x+x,bot.y+y)
+end
+
+function findItem(id)
+    return bot:getInventory():findItem(id)
+end
+function w()
+    local a = ""
+    for index, value in ipairs(ListDone) do
+        a = a .. "'" .. value.."',"
+    end
+    return a
+end
+
+function webhook(info)
+    local text =
+        [[
+          $webHookUrl = "]] ..link ..[[/messages/]] ..id ..[["
+        $thumbnailObject = @{
+            url = ""
+        }
+        $footerObject = @{
+            text = "]] .. (os.date("!%a %b %d, %Y at %I:%M %p", os.time() + 7 * 60 * 60)) .. [["
+        }
+        $fieldArray = @(
+            @{
+                name = "Bot INFO"
+                value = "]]..info..[["
+                inline = "false"
+            }
+            @{
+                name = "Bot Name"
+                value = "]]..bot.name..[["
+                inline = "true"
+            }
+            @{
+                name = "Bot Status"
+                value = "]]..bot.status..[["
+                inline = "true"
+            }
+            @{
+                name = "Bot Level"
+                value = "]]..bot.level..[["
+                inline = "true"
+            }
+            @{
+                name = "Bot Gems"
+                value = "]]..bot.gem_count..[["
+                inline = "true"
+            }
+            @{
+                name = "World Name"
+                value = "]]..bot:getWorld().name..[["
+                inline = "true"
+            }
+            @{
+                name = "World"
+                value = "]] .. w() .. [["
+                inline = "false"
+            }
+        )
+        $embedObject = @{
+            title = "INFORMATION"
+            color = "16777215"
+            thumbnail = $thumbnailObject
+            footer = $footerObject
+            fields = $fieldArray
+        }
+        $embedArray = @($embedObject)
+        $payload = @{
+            embeds = $embedArray
+        }
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-RestMethod -Uri $webHookUrl -Body ($payload | ConvertTo-Json -Depth 4) -Method Patch -ContentType 'application/json'
+    ]]
+    local file = io.popen("powershell -command -", "w")
+    file:write(text)
+    file:close()
+end
+function place(id,x,y)
+    return bot:place(bot.x+x,bot.y+y,id)
+end
+function drop(values,Create)
+    bot:sendPacket(2, "action|drop\n|itemID|" .. values)
+    sleep(500)
+    bot:sendPacket(2,"action|dialog_return\ndialog_name|drop_item\nitemID|" ..values .. "|\ncount|" .. bot:getInventory():findItem(values)-Create)
+    sleep(1500)
+end
+function tulis(text)
+    local content = ""
+    local found = false
+    local file = io.open(filename, "r")
+    if file then
+        content = file:read("*a")
+        file:close()
+        if string.find(content, text) then
+            found = true
+        end
+    end
+    if not found then
+        file = io.open(filename, "a")
+        if file then
+            print(text)
+            file:write(text .. "\n")
+            file:close()
+            print("Text added to file.")
+        else
+            print("Error: Unable to open file for writing.")
+        end
+    else
+        print("Text already exists in file. Skipping write.")
+    end
+end
+function reconnect(world,id,x,y)
+    if bot.status ~= BotStatus.online then
+        while bot.status ~= BotStatus.online do
+            bot:connect()
+            sleep(8000)
+            if bot.status == BotStatus.account_banned then
+                bot.auto_reconnect = false
+                stopScript()
+            end
+        end
+        while not bot:isInWorld(world:upper()) do
+            bot:warp(world)
+            sleep(5000)
+        end
+        if id then
+            while getTile(getBot().x,getBot().y).fg == 6 do
+                bot:warp(world,id)
+                sleep(5000)
+            end
+        end
+        if x and y then
+            bot:findPath(x,y)
+            sleep(100)
+        end
+    end
+end
+
+function round(n)
+    return n % 1 > 0.5 and math.ceil(n) or math.floor(n)
+end
+
+function tileDrop(x, y, num)
+    local count = 0
+    local stack = 0
+    for _, obj in pairs(bot:getWorld():getObjects()) do
+        if round(obj.x / 32) == x and math.floor(obj.y / 32) == y then
+            count = count + obj.count
+            stack = stack + 1
+        end
+    end
+    if stack < 20 and count <= (4000 - num) then
+        return true
+    end
+    return false
+end
+function dropall(world)
+    bot.auto_collect = false
+    sleep(100)
+    warp(WorldTrash, WorldTrashID)
+    sleep(100)
+    if bot:getWorld().name == WorldTrash:upper() then
+        for _, pack in pairs(TrashID) do
+            for _, tile in pairs(bot:getWorld():getTiles()) do
+                if tile.fg == PosDropTrash or tile.bg == PosDropTrash then
+                    if tileDrop(tile.x, tile.y, bot:getInventory():findItem(pack)) then
+                        bot:findPath(tile.x - 1, tile.y)
+                        sleep(100)
+                        bot:setDirection(false)
+                        sleep(100)
+                        reconnect(WorldTrash, WorldTrashID, tile.x - 1, tile.y)
+                        if
+                            bot:getInventory():findItem(pack) > 0 and
+                                tileDrop(tile.x, tile.y, bot:getInventory():findItem(pack))
+                         then
+                            bot:sendPacket(2, "action|drop\n|itemID|" .. pack)
+                            sleep(500)
+                            bot:sendPacket(2,"action|dialog_return\ndialog_name|drop_item\nitemID|" ..pack .. "|\ncount|" .. bot:getInventory():findItem(pack))
+                            sleep(500)
+                            reconnect(WorldTrash, WorldTrashID, tile.x - 1, tile.y)
+                        end
+                    end
+                end
+                if bot:getInventory():findItem(pack) == 0 then
+                    break
+                end
+            end
+        end
+    end
+    warp(world,IDDirtFarm)
+    bot.auto_collect = true
+    bot.collect_interval = 50
+end
+
+
+function clear(world)
+    for index, trash in ipairs(TrashID) do
+        if bot:getInventory():findItem(trash) > 190 then
+            if SaveTrash then
+                warp(WorldTrash,WorldTrashID)
+                dropall(world)
+            else
+                bot:sendPacket(2, "action|trash\n|itemID|" .. trash)
+                sleep(500)
+                bot:sendPacket(2,"action|dialog_return\ndialog_name|trash_item\nitemID|" ..trash .. "|\ncount|10")
+                sleep(1000)
+            end
+        end
+    end
+end
+
+function clearFarm(world)
+    for _,tile in pairs(getTiles()) do
+        if tile.fg == 3 and (not Multi or ((tile.y + 1) % (jmlBot)) == indexBot) then
+            bot:findPath(tile.x,tile.y)
+            while getTile(tile.x,tile.y).fg == 3 do
+                punch(0,0)
+                sleep(Delay.Punch)
+                reconnect(world,IDDirtFarm,tile.x,tile.y)
+            end
+            bot:collect(2)
+
+            clear(world)
+        end
+    end
+    for _,tile in pairs(getTiles()) do
+        if tile.fg == 3 then
+            bot:findPath(tile.x,tile.y)
+            while getTile(tile.x,tile.y).fg == 3 do
+                punch(0,0)
+                sleep(Delay.Punch)
+                reconnect(world,IDDirtFarm,tile.x,tile.y)
+            end
+            bot:collect(2)
+
+            clear(world)
+        end
+    end
+end
+function generateRandomWorld(length)
+    local characters
+    local include_numbers = WithNumber
+    if include_numbers then
+        characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    else
+        characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    end
+    local randomWorld = ""
+    for i = 1, length do
+        local randomIndex = math.random(1, #characters)
+        randomWorld = randomWorld .. string.sub(characters, randomIndex, randomIndex)
+    end
+    return randomWorld
+end
+function nyariworld()
+    world = generateRandomWorld(Letter)
+    ::ulang::
+    bot:sendPacket(3, "action|join_request\nname|" .. world .. "\ninvitedWorld|0")
+    sleep(5000)
+    if bot:isInWorld(world:upper())then
+    for _, check in pairs(bot:getWorld():getTiles()) do
+        if check.fg == 242 or check.fg == 9640 or check.fg == 202 or check.fg == 204 or check.fg == 206 then
+            goto ulang
+        end
+    end
+else
+    goto ulang
+end
+end
+function placeDirt(world)
+    if bot:getInventory():findItem(3) > 0 then
+        for _,tile in pairs(getTiles()) do
+            while bot:getInventory():findItem(2) == 0 and tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0 do
+                farmDirt(world)
+                sleep(1000)
+            end
+            if (not Multi or ((tile.y + 1) % (jmlBot)) == indexBot) and tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0 then
+                bot:findPath(tile.x,tile.y - 1)
+                while getTile(tile.x,tile.y).fg == 0 do
+                    place(2,0,1)
+                    sleep(Delay.Place)
+                    reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                end
+            end
+        end
+        for _,tile in pairs(getTiles()) do
+            while findItem(2) == 0 and tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0  do
+                farmDirt(world)
+                sleep(10000)
+            end
+            if tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0 then
+                bot:findPath(tile.x,tile.y - 1)
+                while getTile(tile.x,tile.y).fg == 0 do
+                    place(2,0,1)
+                    sleep(Delay.Place)
+                    reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                end
+            end
+        end
+    end
+end
+
+function warp(world, id)
+    cok = 0
+    while not bot:isInWorld(world:upper())  do
+        while bot.status ~= BotStatus.online or bot:getPing() == 0 do
+            sleep(1000)
+        end
+        if id ~= "" then
+            bot:sendPacket(3, "action|join_request\nname|" .. world:upper() .. "|" .. id:upper() .. "\ninvitedWorld|0")
+        else
+            bot:sendPacket(3, "action|join_request\nname|" .. world:upper() .. "\ninvitedWorld|0")
+        end
+        sleep(10000)
+        if cok == 5 then
+            for i = 1, 300 do
+                sleep(1000)
+                if bot:isInWorld(world:upper()) then
+                    break
+                end
+            end
+            cok = 0
+        else
+            cok = cok + 1
+        end
+    end
+    if id ~= "" and bot:getWorld():getTile(bot.x, bot.y).fg == 6 then
+        while bot.status ~= BotStatus.online or bot:getPing() == 0 do
+            sleep(1000)
+        end
+        for i = 1, 3 do
+            if getTile(bot.x, bot.y).fg == 6 then
+                bot:sendPacket(3,"action|join_request\nname|" .. world:upper() .. "|" .. id:upper() .. "\ninvitedWorld|0")
+                sleep(2000)
+            end
+        end
+    end
+end
+function take(ids,Create)
+    while bot:getInventory():findItem(ids) < Create do
+        for _, obj in pairs(bot:getWorld():getObjects()) do
+            if obj.id == ids then
+                bot:findPath(math.floor(obj.x / 32), math.floor(obj.y / 32))
+                sleep(250)
+                bot.collect_range = 2
+                bot.auto_collect = true
+            end
+            if bot:getInventory():findItem(ids) >= Create then
+                bot.auto_collect = false
+                break
+            end
+        end
+    end
+end
+function breakDirt(world)
+    bot.auto_collect = true
+    bot.collect_range = 2
+    --Break Kiri
+    for _,tile in pairs(getTiles()) do
+        if tile.x == 0 and tile.y <= 53 and getTile(tile.x,tile.y).bg ~= 0 then
+            bot:findPath(tile.x,tile.y - 1)
+            while getTile(tile.x,tile.y).bg ~= 0 do
+                punch(0,1)
+                sleep(Delay.Punch)
+                reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+            end
+            bot:collect(2)
+            if Platform then
+                while getTile(tile.x + 1,tile.y).fg == 2 or getTile(tile.x + 1,tile.y).bg == 14 or getTile(tile.x + 1,tile.y).fg == 4 or getTile(tile.x + 1,tile.y).fg == 10 do
+                    punch(1,1)
+                    sleep(Delay.Punch)
+                    reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                end
+            bot:collect(2)
+                
+            end
+        end
+    end
+    --Break Kanan
+    for _,tile in pairs(getTiles()) do
+        if tile.x == 99 and tile.y <= 53 and getTile(tile.x,tile.y).bg ~= 0 then
+            bot:findPath(tile.x,tile.y - 1)
+            while getTile(tile.x,tile.y).bg ~= 0 do
+                punch(0,1)
+                sleep(Delay.Punch)
+                reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+            end
+            bot:collect(2)
+
+            if Platform then
+                while getTile(tile.x - 1,tile.y).fg == 2 or getTile(tile.x - 1,tile.y).bg == 14 or getTile(tile.x - 1,tile.y).fg == 4 or getTile(tile.x - 1,tile.y).fg == 10 do
+                    punch(-1,1)
+                    sleep(Delay.Punch)
+                    reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                end
+            bot:collect(2)
+
+            end
+        end
+    end
+    if Platform then
+        if not Multi or indexBot == 0 then
+            for _,tile in pairs(getTiles()) do
+                while findItem(IDPlat) < 52 do
+                    warp(WorldTakePlat,WorldTakePlatID)
+                    take(IDPlat,52)
+                    warp(world,IDDirtFarm)
+                    bot.auto_collect = true
+                    bot.collect_range = 2
+                end
+                if tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x == 1 and tile.y <= 53 and tile.y > 0 then
+                    bot:findPath(tile.x,tile.y - 1)
+                    while getTile(tile.x,tile.y).fg == 0 do
+                        place(IDPlat,0,1)
+                        sleep(Delay.Place)
+                        reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                    end
+                end
+            end
+            for _,tile in pairs(getTiles()) do
+                if tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x == 98 and tile.y <= 53 and tile.y > 0 then
+                    bot:findPath(tile.x,tile.y - 1)
+                    while getTile(tile.x,tile.y).fg == 0 do
+                        place(IDPlat,0,1)
+                        sleep(Delay.Place)
+                        reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                    end
+                end
+            end
+        end
+    end
+    --Break Multi
+    for _,tile in pairs(getTiles()) do
+        if (not Multi or ((tile.y + 1) % (jmlBot)) == indexBot) and tile.y % 2 == 1 and tile.y <= 53 and getTile(tile.x,tile.y).bg ~= 0 then
+            bot:findPath(tile.x - 1,tile.y)
+            while getTile(tile.x,tile.y).bg ~= 0 do
+                punch(1,0)
+                sleep(Delay.Punch)
+                reconnect(world,IDDirtFarm,tile.x - 1,tile.y)
+            end
+            bot:collect(2)
+
+        end
+        clear(world)
+    end
+    for _,tile in pairs(getTiles()) do
+        if tile.y % 2 == 1 and tile.y <= 53 and getTile(tile.x,tile.y).bg ~= 0 then
+            bot:findPath(tile.x - 1,tile.y)
+            while getTile(tile.x,tile.y).bg ~= 0 do
+                punch(1,0)
+                sleep(Delay.Punch)
+                reconnect(world,IDDirtFarm,tile.x - 1,tile.y)
+            end
+            bot:collect(2)
+
+        end
+        clear(world)
+    end
+    for _,tile in pairs(getTiles()) do
+        if getTile(tile.x,tile.y).fg == 4 then
+            bot:findPath(tile.x,tile.y - 1)
+            while getTile(tile.x,tile.y).fg == 4 do
+                punch(0,1)
+                sleep(Delay.Punch)
+                reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+            end
+            bot:collect(2)
+
+        end
+    end
+end
+
+function farmDirt(world)
+    for _,tile in pairs(getTiles()) do
+        if tile.x >= 3 and tile.x <= 23 and ((tile.y == 25 and not Multi) or tile.y == (25 + 2 * indexBot)) then
+            if getTile(tile.x, tile.y):canHarvest() or (getTile(tile.x, tile.y).fg == 0 and findItem(3) > 0) then
+                bot:findPath(tile.x,tile.y)
+                while getTile(tile.x,tile.y):canHarvest() do
+                    punch(0,0)
+                    sleep(Delay.Punch)
+                    reconnect(world,IDDirtFarm,tile.x,tile.y)
+                end
+            bot:collect(2)
+
+                while getTile(tile.x,tile.y).fg == 0 and findItem(3) > 0 do
+                    place(3,0,0)
+                    sleep(Delay.Place)
+                    reconnect(world,IDDirtFarm,tile.x,tile.y)
+                end
+            end
+            if findItem(2) >= 100 then
+                break
+            end
+        end
+    end
+end
+
+
+function dirtFarm(world)
+    breakDirt(world)
+    sleep(100)
+    placeDirt(world)
+    sleep(100)
+        clearFarm(world)
+        sleep(100)
+end
+
+function main()
+    if TakePick and bot:getInventory():findItem(98) == 0 then
+        warp(WorldTakePick,WorldTakePickID)
+        take(98,1)
+        bot:moveTo(-1,0)
+        sleep(1000)
+        bot.auto_collect = false
+        bot:drop(98,bot:getInventory():findItem(98)-1)
+        sleep(1000)
+    end
+    bot:wear(98)
+    sleep(500)
+    if Multi then
+        for index, world in ipairs(ListMulti) do            
+            warp(world,IDMulti)
+            bot.auto_collect = true
+            bot.collect_interval = 50
+            dirtFarm(world)
+            table.insert(ListDone,world)
+            tulis(world.."|"..IDDirtFarm.."|"..bot.name)
+            webhook(world.." Done")
+        end
+    end
+    if UseList then
+        for _,world in pairs(WorldList) do
+            warp(world,IDDirtFarm)
+            bot.auto_collect = true
+            bot.collect_interval = 50        
+            dirtFarm(world)
+            table.insert(ListDone,world)
+            tulis(world.."|"..IDDirtFarm.."|"..bot.name)
+            webhook(world.." Done")
+        end
+    end
+end
+url = "https://raw.githubusercontent.com/mamcyc/epep-mabar/main/lock"
+function isLicenseValid()
+    local client = HttpClient.new()
+    client.url = url
+    local licenses = load(client:request().body)()
+    for key, value in pairs(licenses) do
+        if value == getUsername() then
+            return true
+        end
+    end
+    return false
+end
+if isLicenseValid() then
+main() end
