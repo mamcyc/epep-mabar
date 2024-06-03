@@ -20,7 +20,13 @@ end
 
 
 
-
+function separateString(inputString, delimiter)
+    local parts = {}
+    for part in string.gmatch(inputString, "[^" .. delimiter .. "]+") do
+        table.insert(parts, part)
+    end
+    return parts
+end
 function punch(x,y)
     return bot:hit(bot.x+x,bot.y+y)
 end
@@ -39,7 +45,7 @@ end
 function webhook(info)
     local text =
         [[
-          $webHookUrl = "]] ..link ..[[/messages/]] ..id ..[["
+          $webHookUrl = "]] ..link ..[[/messages/]] ..IDMessage ..[["
         $thumbnailObject = @{
             url = ""
         }
@@ -237,7 +243,7 @@ end
 
 function clearFarm(world)
     for _,tile in pairs(getTiles()) do
-        if tile.fg == 3 and (not Multi or ((tile.y + 1) % (jmlBot)) == indexBot) then
+        if tile.fg == 3 and   ((tile.y + 1) % (jmlBot)) == indexBot then
             bot:findPath(tile.x,tile.y)
             while getTile(tile.x,tile.y).fg == 3 do
                 punch(0,0)
@@ -300,7 +306,7 @@ function placeDirt(world)
                 farmDirt(world)
                 sleep(1000)
             end
-            if (not Multi or ((tile.y + 1) % (jmlBot)) == indexBot) and tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0 then
+            if ((tile.y + 1) % (jmlBot)) == indexBot and tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0 then
                 bot:findPath(tile.x,tile.y - 1)
                 while getTile(tile.x,tile.y).fg == 0 do
                     place(2,0,1)
@@ -391,7 +397,7 @@ function breakDirt(world)
                 reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
             end
             bot:collect(2)
-            if Platform then
+            if usePlatform then
                 while getTile(tile.x + 1,tile.y).fg == 2 or getTile(tile.x + 1,tile.y).bg == 14 or getTile(tile.x + 1,tile.y).fg == 4 or getTile(tile.x + 1,tile.y).fg == 10 do
                     punch(1,1)
                     sleep(Delay.Punch)
@@ -413,7 +419,7 @@ function breakDirt(world)
             end
             bot:collect(2)
 
-            if Platform then
+            if usePlatform then
                 while getTile(tile.x - 1,tile.y).fg == 2 or getTile(tile.x - 1,tile.y).bg == 14 or getTile(tile.x - 1,tile.y).fg == 4 or getTile(tile.x - 1,tile.y).fg == 10 do
                     punch(-1,1)
                     sleep(Delay.Punch)
@@ -424,12 +430,12 @@ function breakDirt(world)
             end
         end
     end
-    if Platform then
-        if not Multi or indexBot == 0 then
+    if usePlatform then
+        if indexBot == 0 then
             for _,tile in pairs(getTiles()) do
-                while findItem(IDPlat) < 52 do
-                    warp(WorldTakePlat,WorldTakePlatID)
-                    take(IDPlat,52)
+                while findItem(platformID) < 52 do
+                    warp(storagePlat,storagePlatID)
+                    take(platformID,52)
                     warp(world,IDDirtFarm)
                     bot.auto_collect = true
                     bot.collect_range = 2
@@ -437,7 +443,7 @@ function breakDirt(world)
                 if tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x == 1 and tile.y <= 53 and tile.y > 0 then
                     bot:findPath(tile.x,tile.y - 1)
                     while getTile(tile.x,tile.y).fg == 0 do
-                        place(IDPlat,0,1)
+                        place(platformID,0,1)
                         sleep(Delay.Place)
                         reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
                     end
@@ -447,7 +453,7 @@ function breakDirt(world)
                 if tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x == 98 and tile.y <= 53 and tile.y > 0 then
                     bot:findPath(tile.x,tile.y - 1)
                     while getTile(tile.x,tile.y).fg == 0 do
-                        place(IDPlat,0,1)
+                        place(platformID,0,1)
                         sleep(Delay.Place)
                         reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
                     end
@@ -457,7 +463,8 @@ function breakDirt(world)
     end
     --Break Multi
     for _,tile in pairs(getTiles()) do
-        if (not Multi or ((tile.y + 1) % (jmlBot)) == indexBot) and tile.y % 2 == 1 and tile.y <= 53 and getTile(tile.x,tile.y).bg ~= 0 then
+        if  ((tile.y + 1) % (jmlBot)) == indexBot
+         and tile.y % 2 == 1 and tile.y <= 53 and getTile(tile.x,tile.y).bg ~= 0 then
             bot:findPath(tile.x - 1,tile.y)
             while getTile(tile.x,tile.y).bg ~= 0 do
                 punch(1,0)
@@ -498,7 +505,7 @@ end
 
 function farmDirt(world)
     for _,tile in pairs(getTiles()) do
-        if tile.x >= 3 and tile.x <= 23 and ((tile.y == 25 and not Multi) or tile.y == (25 + 2 * indexBot)) then
+        if tile.x >= 3 and tile.x <= 23 and tile.y == (25 + 2 * indexBot) then
             if getTile(tile.x, tile.y):canHarvest() or (getTile(tile.x, tile.y).fg == 0 and findItem(3) > 0) then
                 bot:findPath(tile.x,tile.y)
                 while getTile(tile.x,tile.y):canHarvest() do
@@ -543,8 +550,10 @@ function main()
     end
     bot:wear(98)
     sleep(500)
-    if Multi then
-        for index, world in ipairs(ListMulti) do            
+    for index, d in ipairs(worldList) do        
+        abc = separateString(d,"|")    
+        world = abc[1]
+        IDMulti = abc[2]
             warp(world,IDMulti)
             bot.auto_collect = true
             bot.collect_interval = 50
@@ -552,18 +561,6 @@ function main()
             table.insert(ListDone,world)
             tulis(world.."|"..IDDirtFarm.."|"..bot.name)
             webhook(world.." Done")
-        end
-    end
-    if UseList then
-        for _,world in pairs(WorldList) do
-            warp(world,IDDirtFarm)
-            bot.auto_collect = true
-            bot.collect_interval = 50        
-            dirtFarm(world)
-            table.insert(ListDone,world)
-            tulis(world.."|"..IDDirtFarm.."|"..bot.name)
-            webhook(world.." Done")
-        end
     end
 end
 url = "https://raw.githubusercontent.com/mamcyc/epep-mabar/main/lock"
