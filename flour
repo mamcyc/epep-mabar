@@ -1,0 +1,390 @@
+bot = getBot()
+for ii , bots in pairs(getBots()) do
+    if bot.name == bots.name then
+        index = ii
+        break
+    end
+    sleep(1000)
+end
+Pabrik_World = BotPabrik[index].WorldPabrik
+Pabrik_WorldID = BotPabrik[index].WorldPabrikID
+Row = BotPabrik[index].Row
+MarkerID = BotPabrik[index].PosID
+yeye = 0
+
+tileBreak = {}
+local prop = 0 --pack
+local proe = 0 --flour
+for i = math.floor(PunchTile/2),1,-1 do
+    i = i * -1
+    table.insert(tileBreak,i)
+end
+for i = 0, math.ceil(PunchTile/2) - 1 do
+    table.insert(tileBreak,i)
+end
+function clear()
+    for index, trash in ipairs(TrashID) do
+        if bot:getInventory():findItem(trash) > 150 then
+                bot:sendPacket(2, "action|trash\n|itemID|" .. trash)
+                sleep(500)
+                bot:sendPacket(2,"action|dialog_return\ndialog_name|trash_item\nitemID|" ..trash .. "|\ncount|"..bot:getInventory():findItem(trash))
+                sleep(1000)
+        end
+    end
+end
+bot = getBot()
+startTime = os.time()
+
+function scan(id)
+    local count = 0
+    for _, obj in pairs(bot:getWorld():getObjects()) do
+        if obj.id == id then
+            count = count + obj.count
+        end
+    end
+    return count
+end
+function webko(text)
+    webhook = Webhook.new(WebhookLink)
+webhook.embed1.use = true
+webhook.embed1.title = "Flour"
+webhook.embed1.description = text
+webhook.embed1.footer.text = (os.date("!%a %b %d, %Y at %I:%M %p", os.time() + 7 * 60 * 60))
+webhook:send()
+print("["..bot.name.."] "..text)
+end
+function warp(world, id)
+    cok = 0
+    while not bot:isInWorld(world:upper()) do
+        while bot.status ~= BotStatus.online or bot:getPing() == 0 do
+            sleep(1000)
+        end
+        if id ~= "" then
+            bot:sendPacket(3, "action|join_request\nname|" .. world:upper() .. "|" .. id:upper() .. "\ninvitedWorld|0")
+        else
+            bot:sendPacket(3, "action|join_request\nname|" .. world:upper() .. "\ninvitedWorld|0")
+        end
+        sleep(10000)
+        if cok == 5 then
+            for i = 1, 300 do
+                sleep(1000)
+                if bot:isInWorld(world:upper()) then
+                    break
+                end
+            end
+            cok = 0
+        else
+            cok = cok + 1
+        end
+    end
+    if id ~= "" and bot:getWorld():getTile(bot.x, bot.y).fg == 6 then
+        while bot.status ~= BotStatus.online or bot:getPing() == 0 do
+            sleep(1000)
+        end
+        for i = 1, 3 do
+            if getTile(bot.x, bot.y).fg == 6 then
+                bot:sendPacket(
+                    3,
+                    "action|join_request\nname|" .. world:upper() .. "|" .. id:upper() .. "\ninvitedWorld|0"
+                )
+                sleep(2000)
+            end
+        end
+    end
+end
+
+function reconnect(world, id, x, y)
+    if bot.status == BotStatus.online and (bot.x ~= x or bot.y ~= y) then
+        while bot:getWorld().name ~= world:upper() do
+            bot:sendPacket(3, "action|join_request\nname|" .. world:upper() .. "\ninvitedWorld|0")
+            sleep(10000)
+        end
+        if id ~= "" and getTile(bot.x, bot.y).fg == 6 then
+            bot:sendPacket(3, "action|join_request\nname|" .. world:upper() .. "|" .. id:upper() .. "\ninvitedWorld|0")
+            sleep(2000)
+        end
+        if x and y and (bot.x ~= x or bot.y ~= y) then
+            bot:findPath(x, y)
+            sleep(100)
+        end
+    end
+    if bot.status ~= BotStatus.online or bot:getPing() == 0 then
+        while bot.status ~= BotStatus.online or bot:getPing() == 0 do
+            bot.auto_reconnect = true
+            sleep(1000)
+            if bot.status == BotStatus.online and bot:getPing() ~= 0 then
+                break
+            end
+        end
+        while bot:getWorld().name ~= world:upper() do
+            bot:sendPacket(3, "action|join_request\nname|" .. world:upper() .. "\ninvitedWorld|0")
+            sleep(10000)
+        end
+        if id ~= "" and getTile(bot.x, bot.y).fg == 6 then
+            bot:sendPacket(3, "action|join_request\nname|" .. world:upper() .. "|" .. id:upper() .. "\ninvitedWorld|0")
+            sleep(2000)
+        end
+        if x and y and (bot.x ~= x or bot.y ~= y) then
+            bot:findPath(x, y)
+            sleep(100)
+        end
+    end
+end
+function round(n)
+    return n % 1 > 0.5 and math.ceil(n) or math.floor(n)
+end
+
+
+function baris()
+    n = 0
+    for _, t in ipairs(getTiles()) do
+        if t.bg == MarkerID or t.fg == MarkerID then
+            n = n + 1
+            if n == Row then
+                bot:findPath(t.x, t.y)
+                yeye = t.y
+                break
+            end
+        end
+    end
+end
+function tilePunch(x,y)
+    for _,num in pairs(tileBreak) do
+        if getTile(x + num,y -1).fg ~= 0 or getTile(x + num,y -1).bg ~= 0 then
+            return true
+        end
+    end
+    return false
+end
+
+function tilePlace(x,y)
+    for _,num in pairs(tileBreak) do
+        if getTile(x + num,y -1).fg == 0 and getTile(x + num,y -1).bg == 0 then
+            return true
+        end
+    end
+    return false
+end
+function pnb()
+    print("PNB")
+    clear()
+    bot.ignore_gems = false
+    if bot:getInventory():findItem(880) > 0 and bot:getInventory():findItem(881) < 190 then
+        ex = bot.x
+        ye = bot.y
+       while bot:getInventory():findItem(880) > 0 and bot:getInventory():findItem(881) < 190 do
+        while tilePlace(ex,ye) do
+            for _,i in pairs(tileBreak) do
+                while getTile(ex + i,ye - 1).fg == 0 and getTile(ex + i,ye - 1).bg == 0 and bot:getInventory():findItem(880) > 0 do
+                    bot:place(ex + i,ye - 1,880)
+                    sleep(120)
+                    reconnect(Pabrik_World,Pabrik_WorldID,ex,ye)
+                end
+            end
+            if  bot:getInventory():findItem(880) == 0 or bot:getInventory():findItem(881) > 190 then
+                break
+            end
+        end
+        while tilePunch(ex,ye) do
+            for _,i in pairs(tileBreak) do
+                if getTile(ex + i,ye - 1).fg ~= 0 or getTile(ex + i,ye - 1).bg ~= 0 then
+                    bot:hit(ex + i,ye - 1)
+                    sleep(160)
+                    reconnect(Pabrik_World,Pabrik_WorldID,ex,ye)
+                end
+            end
+            if  bot:getInventory():findItem(880) == 0 or bot:getInventory():findItem(881) > 190 then
+                break
+            end
+        end
+    end
+    
+end
+
+end
+function tileDrop(x, y, num)
+    local count = 0
+    local stack = 0
+    for _, obj in pairs(bot:getWorld():getObjects()) do
+        if round(obj.x / 32) == x and math.floor(obj.y / 32) == y then
+            count = count + obj.count
+            stack = stack + 1
+        end
+    end
+    if stack < 20 and count <= (4000 - num) then
+        return true
+    end
+    return false
+end
+function store(ListToolsDrop,PosDrop)
+    bot.auto_collect = false
+    sleep(100)
+    for _, pack in pairs(ListToolsDrop) do
+        for _, tile in pairs(bot:getWorld():getTiles()) do
+            if tile.fg == PosDrop or tile.bg == PosDrop then
+                if tileDrop(tile.x, tile.y, bot:getInventory():findItem(pack)) then
+                    bot:findPath(tile.x - 1, tile.y)
+                    sleep(100)
+                    bot:setDirection(false)
+                    sleep(100)
+                    if bot:getInventory():findItem(pack) > 0 and tileDrop(tile.x, tile.y, bot:getInventory():findItem(pack)) then
+                        bot:sendPacket(2, "action|drop\n|itemID|" .. pack)
+                        sleep(500)
+                        bot:sendPacket(2,"action|dialog_return\ndialog_name|drop_item\nitemID|" ..pack .. "|\ncount|" .. bot:getInventory():findItem(pack))
+                        sleep(500)
+                    end
+                end
+            end
+            if bot:getInventory():findItem(pack) == 0 then
+                bot.auto_collect = false
+                break
+            end
+        end
+    end
+end
+function grind()
+    for index, tile in ipairs(getTiles()) do
+        if tile.fg == 4582 then
+            bot:findPath(tile.x-1,tile.y)
+            sleep(100)
+            bot:place(tile.x,tile.y,880)
+            sleep(500)
+            bot:sendPacket(2,"action|dialog_return\ndialog_name|grinder\ntilex|"..tile.x.."|\ntiley|"..tile.y.."|\nitemID|880|\ncount|"..math.floor(bot:getInventory():findItem(880)/50))
+            sleep(1200)
+            reconnect(Pabrik_World,Pabrik_WorldID,x,yeye)
+            webko("Grinding ")
+            reconnect(Pabrik_World,Pabrik_WorldID,x,yeye)
+        end
+    end
+end
+
+function harvestxplant()
+    print("Harvest")
+    for x = 0, 99, 1 do
+        -- if (getTile(x, yeye).fg == 881 and getTile(x, yeye):canHarvest() and bot:getInventory():findItem(880) < 180 and bot:getInventory():findItem(881) < 150) or (getTile(x, yeye).fg == 0 and getTile(x, yeye+1).fg > 0 and bot:getInventory():findItem(881) > 0 ) then
+            if getTile(x, yeye).fg == 881 and getTile(x, yeye):canHarvest() and bot:getInventory():findItem(880) < 180 and bot:getInventory():findItem(881) < 190   then
+                bot:findPath(x,yeye)
+                for _, xx in pairs({0,1,2}) do
+                    while getTile(x+xx, yeye).fg == 881 and getTile(x+xx, yeye):canHarvest()  do
+                        bot:hit(x+xx,yeye)
+                        sleep(150)
+                        reconnect(Pabrik_World,Pabrik_WorldID,x,yeye)
+                    end
+                end
+            end
+            -- if getTile(x, yeye).fg == 0 and getTile(x, yeye+1).fg > 0 and bot:getInventory():findItem(881) > 0  then
+            -- bot:findPath(x,yeye)
+               
+            --     while getTile(x, yeye).fg == 0 and getTile(x, yeye+1).fg > 0 and bot:getInventory():findItem(881) > 0 do
+            --         bot:place(x,yeye,881)
+            --         sleep(150)
+            --         reconnect(Pabrik_World,Pabrik_WorldID,x,yeye)
+            --     end
+            -- end
+        -- end
+    end
+end
+function xplant()
+    print("Planting")
+    for x = 0, 99, 1 do
+        if  getTile(x, yeye+1).fg > 0 and bot:getInventory():findItem(881) > 0 and getTile(x, yeye).fg == 0  then
+            bot:findPath(x,yeye)
+            reconnect(Pabrik_World,Pabrik_WorldID,x,yeye)
+            if getTile(x, yeye).fg == 0 and getTile(x, yeye+1).fg > 0 and bot:getInventory():findItem(881) > 0 then
+                for _, xx in pairs({0,1,2})do
+
+                while getTile(x+xx, yeye).fg == 0 and getTile(x+xx, yeye+1).fg > 0 and bot:getInventory():findItem(881) > 0 do
+                    bot:place(x+xx,yeye,881)
+                    sleep(150)
+                    reconnect(Pabrik_World,Pabrik_WorldID,x,yeye)
+                end
+            end
+            end
+        end
+    end
+end
+function pabrik()
+    if bot:getInventory():findItem(880) > 0 and bot:getInventory():findItem(881) <= 190 then
+        baris()
+        pnb()
+        if bot.gem_count >= PackPrice and BuyPack then
+            warp(WorldPack,WorldPackID)
+            webko("Buying  Pack")
+            while  bot.gem_count >= PackPrice do
+                bot:buy(PackName)
+                sleep(1250)
+                reconnect(WorldPack,WorldPackID,x,yeye)
+            end
+            store(PackID,PosDropPack)
+            webko("Done Storing Pack Warp Back to"..Pabrik_World)
+            warp(Pabrik_World,Pabrik_WorldID)
+bot.auto_collect = true
+
+            prop = prop +1
+        end
+    end
+    if bot:getInventory():findItem(880) <= 150 and bot:getInventory():findItem(881) <= 190 then
+        xplant()
+        harvestxplant()
+    end
+    if bot:getInventory():findItem(881) >= 150 then
+        xplant()
+        harvestxplant()
+        if bot:getInventory():findItem(880) >= 150 then
+            grind()
+            if bot:getInventory():findItem(4562) >= 5 then
+                proe = proe + bot:getInventory():findItem(4562)
+                local dd = bot:getInventory():findItem(4562)
+                warp(WorldSaveFlour,WorldSaveFlourID)
+                store({4562},PosDropFlour)
+                webko("Warping : "..WorldSaveFlour.." Saving Flour : "..dd)
+                webko("Done Saving Flour Warping Back to "..Pabrik_World)
+                warp(Pabrik_World,Pabrik_WorldID)
+bot.auto_collect = true
+
+            end
+        end
+    end
+end
+local function take(ids, Create)
+    if bot:getInventory():findItem(ids) < Create then
+        while bot:getInventory():findItem(ids) < Create do
+            for _, obj in pairs(bot:getWorld():getObjects()) do
+                if obj.id == ids then
+                    bot:findPath(math.floor(obj.x / 32), math.floor(obj.y / 32))
+                    sleep(250)
+                    bot:collectObject(obj.oid, 2)
+                end
+                if bot:getInventory():findItem(ids) >= Create then
+                    break
+                end
+            end
+        end
+    end
+end
+function main()
+    warp(Pabrik_World,Pabrik_WorldID)
+
+    bot.collect_range =3
+bot.auto_collect = true
+    baris()
+    print("Pos Position "..bot.x..":"..bot.y)
+    while true do
+        pabrik()
+    end
+end
+
+url = "https://raw.githubusercontent.com/mamcyc/epep-mabar/main/lock-flour"
+function isLicenseValid()
+    local client = HttpClient.new()
+    client.url = url
+    local licenses = load(client:request().body)()
+    for key, value in pairs(licenses) do
+        if value == getUsername() then
+            return true
+        end
+    end
+    return false
+end
+if isLicenseValid() then
+main() end
