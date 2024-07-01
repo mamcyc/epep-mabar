@@ -566,7 +566,7 @@ function main()
         end
     end
 end
-url = "https://rentry.co/dirtfarm/raw"
+url = "https://raw.githubusercontent.com/mamcyc/epep-mabar/main/lock"
 function isLicenseValid()
     local client = HttpClient.new()
     client.url = url
