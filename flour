@@ -6,20 +6,20 @@ for ii , bots in pairs(getBots()) do
     end
     sleep(1000)
 end
-Pabrik_World = BotPabrik[index].WorldPabrik
-Pabrik_WorldID = BotPabrik[index].WorldPabrikID
+Pabrik_World = BotPabrik[index].Pabrik_World
+Pabrik_WorldID = BotPabrik[index].Pabrik_WorldID
 Row = BotPabrik[index].Row
-MarkerID = BotPabrik[index].PosID
+MarkerID = BotPabrik[index].MarkerID
 yeye = 0
 
 tileBreak = {}
 local prop = 0 --pack
 local proe = 0 --flour
-for i = math.floor(PunchTile/2),1,-1 do
+for i = math.floor(Break_tile/2),1,-1 do
     i = i * -1
     table.insert(tileBreak,i)
 end
-for i = 0, math.ceil(PunchTile/2) - 1 do
+for i = 0, math.ceil(Break_tile/2) - 1 do
     table.insert(tileBreak,i)
 end
 function clear()
@@ -315,7 +315,7 @@ function pabrik()
                 sleep(1250)
                 reconnect(WorldPack,WorldPackID,x,yeye)
             end
-            store(PackID,PosDropPack)
+            store(PackID,PosPack)
             webko("Done Storing Pack Warp Back to"..Pabrik_World)
             warp(Pabrik_World,Pabrik_WorldID)
 bot.auto_collect = true
@@ -332,12 +332,12 @@ bot.auto_collect = true
         harvestxplant()
         if bot:getInventory():findItem(880) >= 150 then
             grind()
-            if bot:getInventory():findItem(4562) >= 5 then
+            if bot:getInventory():findItem(4562) >= Count_Flour_save then
                 proe = proe + bot:getInventory():findItem(4562)
                 local dd = bot:getInventory():findItem(4562)
-                warp(WorldSaveFlour,WorldSaveFlourID)
-                store({4562},PosDropFlour)
-                webko("Warping : "..WorldSaveFlour.." Saving Flour : "..dd)
+                warp(Storage_flour_save,Storage_flour_saveID)
+                store({4562},Storage_flour_patokan)
+                webko("Warping : "..Storage_flour_save.." Saving Flour : "..dd)
                 webko("Done Saving Flour Warping Back to "..Pabrik_World)
                 warp(Pabrik_World,Pabrik_WorldID)
 bot.auto_collect = true
@@ -374,17 +374,4 @@ bot.auto_collect = true
     end
 end
 
-url = "https://raw.githubusercontent.com/mamcyc/epep-mabar/main/lock-flour"
-function isLicenseValid()
-    local client = HttpClient.new()
-    client.url = url
-    local licenses = load(client:request().body)()
-    for key, value in pairs(licenses) do
-        if value == getUsername() then
-            return true
-        end
-    end
-    return false
-end
-if isLicenseValid() then
-main() end
+main()
