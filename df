@@ -11,7 +11,7 @@ for i, botz in pairs(getBots()) do
 end
 UseList = Bots[abc].UseList
 WorldList = Bots[abc].WorldList
-IDDirtFarm =Bots[abc].IDDirtFarm
+door =Bots[abc].door
 
 if jmlBot % 2 == 0 then
     jmlBot = jmlBot + 1
@@ -19,7 +19,97 @@ end
 
 
 
+function tablelength(T)
+    local count = 0
+    for _ in pairs(T) do 
+        count = count + 1 
+    end
+    return count
+end
 
+function split(inputstr, sep)
+    if sep == nil then
+        sep = "%s"
+    end
+    local t = {}
+    for str in string.gmatch(inputstr, "([^" .. sep .. "]+)") do
+        table.insert(t, str)
+    end
+    return t
+end
+function detectSeparator(line, separators)
+    for separator in separators:gmatch(".") do
+        if line:find(separator) then
+            return separator
+        end
+    end
+    return nil
+end
+
+
+function read(txtFile) 
+    local fileName = txtFile
+    local lines = {} 
+    local lines1 = ""
+    local tempoFile = fileName..".tmp"
+    local tempoFileName = io.open(tempoFile, "r")
+    if tempoFileName then
+        sleep(50 + indexBot)
+        tempoFileName:close()
+        return
+    end
+    local tempoFileName = io.open(tempoFile, "w")
+    if not tempoFileName then 
+        print("Cannot open")
+        return
+    end
+    local file = io.open(fileName, "r")
+    if file then 
+        for line in file:lines() do 
+            table.insert(lines, line)
+        end
+        file:close()
+        lines1 = lines[1]
+        detectedSeparator = detectSeparator(lines[1], separators)
+        data = split(lines[1], detectedSeparator)
+        if tablelength(data) == 2 then
+            result1 = data[1]
+            result2 = data[2]
+        end
+        table.remove(lines, 1)
+    else 
+        tempoFileName:close()
+        os.remove(tempoFile)
+        print("Tidak bisa membuka file asli.")
+    end
+    for _,line in ipairs(lines) do 
+        tempoFileName:write(line.. "\n")
+    end
+    tempoFileName:write(lines1)
+    tempoFileName:close()
+    
+    os.remove(fileName)
+    os.rename(tempoFile, fileName)
+    return result1,result2
+end
+
+function Read(filename)
+    data = {} 
+    file = io.open(filename, "r")
+    if file then 
+        for line in file:lines() do
+            detectedSeparator = detectSeparator(line, separators)
+            world, id = line:match("([^:]+)"..detectedSeparator.."([^:]+)")
+            if world and id then
+                table.insert(data, {world = world, id = id})
+            end
+        end
+        file:close()
+        return data
+    else 
+        print(" Cannot Find File")
+    end
+end
 
 function punch(x,y)
     return bot:hit(bot.x+x,bot.y+y)
@@ -180,7 +270,7 @@ function tileDrop(x, y, num)
     end
     return false
 end
-function dropall(world)
+function dropall(world,door)
     bot.auto_collect = false
     sleep(100)
     warp(WorldTrash, WorldTrashID)
@@ -213,18 +303,18 @@ function dropall(world)
             end
         end
     end
-    warp(world,IDDirtFarm)
+    warp(world,door)
     bot.auto_collect = true
     bot.collect_interval = 50
 end
 
 
-function clear(world)
+function clear(world,door)
     for index, trash in ipairs(TrashID) do
         if bot:getInventory():findItem(trash) > 190 then
             if SaveTrash then
                 warp(WorldTrash,WorldTrashID)
-                dropall(world)
+                dropall(world,door)
             else
                 bot:sendPacket(2, "action|trash\n|itemID|" .. trash)
                 sleep(500)
@@ -235,14 +325,14 @@ function clear(world)
     end
 end
 
-function clearFarm(world)
+function clearFarm(world,door)
     for _,tile in pairs(getTiles()) do
         if tile.fg == 3 and (not Multi or ((tile.y + 1) % (jmlBot)) == indexBot) then
             bot:findPath(tile.x,tile.y)
             while getTile(tile.x,tile.y).fg == 3 do
                 punch(0,0)
                 sleep(Delay.Punch)
-                reconnect(world,IDDirtFarm,tile.x,tile.y)
+                reconnect(world,door,tile.x,tile.y)
             end
             bot:collect(2)
 
@@ -255,7 +345,7 @@ function clearFarm(world)
             while getTile(tile.x,tile.y).fg == 3 do
                 punch(0,0)
                 sleep(Delay.Punch)
-                reconnect(world,IDDirtFarm,tile.x,tile.y)
+                reconnect(world,door,tile.x,tile.y)
             end
             bot:collect(2)
 
@@ -293,7 +383,7 @@ else
     goto ulang
 end
 end
-function placeDirt(world)
+function placeDirt(world,door)
     if bot:getInventory():findItem(3) > 0 then
         for _,tile in pairs(getTiles()) do
             while bot:getInventory():findItem(2) == 0 and tile.y % 2 == 0 and getTile(tile.x,tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0 do
@@ -305,7 +395,7 @@ function placeDirt(world)
                 while getTile(tile.x,tile.y).fg == 0 do
                     place(2,0,1)
                     sleep(Delay.Place)
-                    reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                    reconnect(world,door,tile.x,tile.y - 1)
                 end
             end
         end
@@ -319,7 +409,7 @@ function placeDirt(world)
                 while getTile(tile.x,tile.y).fg == 0 do
                     place(2,0,1)
                     sleep(Delay.Place)
-                    reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                    reconnect(world,door,tile.x,tile.y - 1)
                 end
             end
         end
@@ -378,7 +468,7 @@ function take(ids,Create)
         end
     end
 end
-function breakDirt(world)
+function breakDirt(world,door)
     bot.auto_collect = true
     bot.collect_range = 2
     --Break Kiri
@@ -388,14 +478,14 @@ function breakDirt(world)
             while getTile(tile.x,tile.y).bg ~= 0 do
                 punch(0,1)
                 sleep(Delay.Punch)
-                reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                reconnect(world,door,tile.x,tile.y - 1)
             end
             bot:collect(2)
             if Platform then
                 while getTile(tile.x + 1,tile.y).fg == 2 or getTile(tile.x + 1,tile.y).bg == 14 or getTile(tile.x + 1,tile.y).fg == 4 or getTile(tile.x + 1,tile.y).fg == 10 do
                     punch(1,1)
                     sleep(Delay.Punch)
-                    reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                    reconnect(world,door,tile.x,tile.y - 1)
                 end
             bot:collect(2)
                 
@@ -409,7 +499,7 @@ function breakDirt(world)
             while getTile(tile.x,tile.y).bg ~= 0 do
                 punch(0,1)
                 sleep(Delay.Punch)
-                reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                reconnect(world,door,tile.x,tile.y - 1)
             end
             bot:collect(2)
 
@@ -417,7 +507,7 @@ function breakDirt(world)
                 while getTile(tile.x - 1,tile.y).fg == 2 or getTile(tile.x - 1,tile.y).bg == 14 or getTile(tile.x - 1,tile.y).fg == 4 or getTile(tile.x - 1,tile.y).fg == 10 do
                     punch(-1,1)
                     sleep(Delay.Punch)
-                    reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                    reconnect(world,door,tile.x,tile.y - 1)
                 end
             bot:collect(2)
 
@@ -430,7 +520,7 @@ function breakDirt(world)
                 while findItem(IDPlat) < 52 do
                     warp(WorldTakePlat,WorldTakePlatID)
                     take(IDPlat,52)
-                    warp(world,IDDirtFarm)
+                    warp(world,door)
                     bot.auto_collect = true
                     bot.collect_range = 2
                 end
@@ -439,7 +529,7 @@ function breakDirt(world)
                     while getTile(tile.x,tile.y).fg == 0 do
                         place(IDPlat,0,1)
                         sleep(Delay.Place)
-                        reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                        reconnect(world,door,tile.x,tile.y - 1)
                     end
                 end
             end
@@ -449,7 +539,7 @@ function breakDirt(world)
                     while getTile(tile.x,tile.y).fg == 0 do
                         place(IDPlat,0,1)
                         sleep(Delay.Place)
-                        reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                        reconnect(world,door,tile.x,tile.y - 1)
                     end
                 end
             end
@@ -462,7 +552,7 @@ function breakDirt(world)
             while getTile(tile.x,tile.y).bg ~= 0 do
                 punch(1,0)
                 sleep(Delay.Punch)
-                reconnect(world,IDDirtFarm,tile.x - 1,tile.y)
+                reconnect(world,door,tile.x - 1,tile.y)
             end
             bot:collect(2)
 
@@ -475,7 +565,7 @@ function breakDirt(world)
             while getTile(tile.x,tile.y).bg ~= 0 do
                 punch(1,0)
                 sleep(Delay.Punch)
-                reconnect(world,IDDirtFarm,tile.x - 1,tile.y)
+                reconnect(world,door,tile.x - 1,tile.y)
             end
             bot:collect(2)
 
@@ -488,7 +578,7 @@ function breakDirt(world)
             while getTile(tile.x,tile.y).fg == 4 do
                 punch(0,1)
                 sleep(Delay.Punch)
-                reconnect(world,IDDirtFarm,tile.x,tile.y - 1)
+                reconnect(world,door,tile.x,tile.y - 1)
             end
             bot:collect(2)
 
@@ -496,7 +586,7 @@ function breakDirt(world)
     end
 end
 
-function farmDirt(world)
+function farmDirt(world,door)
     for _,tile in pairs(getTiles()) do
         if tile.x >= 3 and tile.x <= 23 and ((tile.y == 25 and not Multi) or tile.y == (25 + 2 * indexBot)) then
             if getTile(tile.x, tile.y):canHarvest() or (getTile(tile.x, tile.y).fg == 0 and findItem(3) > 0) then
@@ -504,14 +594,14 @@ function farmDirt(world)
                 while getTile(tile.x,tile.y):canHarvest() do
                     punch(0,0)
                     sleep(Delay.Punch)
-                    reconnect(world,IDDirtFarm,tile.x,tile.y)
+                    reconnect(world,door,tile.x,tile.y)
                 end
             bot:collect(2)
 
                 while getTile(tile.x,tile.y).fg == 0 and findItem(3) > 0 do
                     place(3,0,0)
                     sleep(Delay.Place)
-                    reconnect(world,IDDirtFarm,tile.x,tile.y)
+                    reconnect(world,door,tile.x,tile.y)
                 end
             end
             if findItem(2) >= 100 then
@@ -522,12 +612,12 @@ function farmDirt(world)
 end
 
 
-function dirtFarm(world)
-    breakDirt(world)
+function dirtFarm(world,door)
+    breakDirt(world,door)
     sleep(100)
-    placeDirt(world)
+    placeDirt(world,door)
     sleep(100)
-        clearFarm(world)
+        clearFarm(world,door)
         sleep(100)
 end
 
@@ -544,29 +634,30 @@ function main()
     bot:wear(98)
     sleep(500)
     if Multi then
-        for index, world in ipairs(ListMulti) do            
-            warp(world,IDMulti)
-            bot.auto_collect = true
-            bot.collect_interval = 50
-            dirtFarm(world)
-            table.insert(ListDone,world)
-            tulis(world.."|"..IDDirtFarm.."|"..bot.name)
-            webhook(world.." Done")
+        worlds = Read(listWorld)
+        if worlds then 
+            for _, world in ipairs(worlds) do
+                warp(world.world,world.id)
+                bot.auto_collect = true
+                bot.collect_interval = 50
+                dirtFarm(world.world,world.id)
+                table.insert(ListDone,world.world)
+                tulis(world.."|"..world.id.."|"..bot.name)
+                webhook(world.." Done")
+            end
         end
-    end
-    if UseList then
-        for _,world in pairs(WorldList) do
-            warp(world,IDDirtFarm)
-            bot.auto_collect = true
-            bot.collect_interval = 50        
-            dirtFarm(world)
-            table.insert(ListDone,world)
-            tulis(world.."|"..IDDirtFarm.."|"..bot.name)
-            webhook(world.." Done")
-        end
+    else
+        world,door = read(listWorld)
+        warp(world,door)
+        bot.auto_collect = true
+        bot.collect_interval = 50
+        dirtFarm(world,door)
+        table.insert(ListDone,world)
+        tulis(world.."|"..door.."|"..bot.name)
+                webhook(world.." Done")
     end
 end
-url = "https://raw.githubusercontent.com/mamcyc/epep-mabar/main/lock"
+url = "https://rentry.co/dirtfarm/raw"
 function isLicenseValid()
     local client = HttpClient.new()
     client.url = url
