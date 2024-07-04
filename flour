@@ -303,7 +303,45 @@ function xplant()
         end
     end
 end
+
+function saveTxtFile(file)
+    local fileName = file 
+    local lines = {}
+    local file = io.open(fileName, "r") 
+    if file then 
+        for line in file:lines() do 
+            table.insert(lines, line)
+        end
+        file:close()
+    else 
+        print("Cannot Open File")
+    end
+    file = io.open(fileName, "w")
+    if file then 
+        for _,line in ipairs(lines) do 
+            file:write(line.."\n")
+        end
+        file:write(bot.name)
+        file:close()
+    end
+end
+
+function infoBot(status)
+    local wb = Webhook.new(webhookInfo)
+    wb.username = "Versatile"
+    wb.avatar_url = "https://cdn.discordapp.com/attachments/1241741097819181199/1258375809786183700/ABCBCAC3-59B3-47E4-AECF-392495BF9825.png?ex=6687d14c&is=66867fcc&hm=2357e2bb9ba4a069509c95e4773675ad13bc0b0ab983a9d7be3be908bc49e8bd&"
+    wb.content = status
+    wb:send()
+end
+
 function pabrik()
+    if removeBotAfterLevel > 0 and bot.level >= removeBotAfterLevel then 
+        infoBot(bot.name.." Reach Level"..removeBotAfterLevel.." REMOVE Bot")
+        sleep(100)
+        saveTxtFile(saveBotTxt)
+        sleep(100)
+        removeBot()
+    end
     if bot:getInventory():findItem(880) > 0 and bot:getInventory():findItem(881) <= 190 then
         baris()
         pnb()
