@@ -103,8 +103,8 @@ local webhook = Webhook.new(Link)
 webhook.embed1.use = true
 webhook.embed1.title = "Result -  DirtFarm Design"
 webhook.embed1.description = "<:globe:1011929997679796254>WORLD: **"..text.."**\n<:visitz:1213430819998408734>DOOR: ||"..DoorID.."||"
-webhook.embed1.thumbnail = "https://images-ext-1.discordapp.net/external/LPJQR4xeO2G6mibbSxNUbAaQHRjngUbQo8rJJBBGutY/https/cdn.discordapp.com/avatars/1204716269274800191/ec182a7a38fed23a6e31f15b2cf56d63.png?format=webp&quality=lossless"
-webhook.embed1.footer.text = "Imaam Script | Find World\n"..os.date("!%b-%d-%Y, %I:%M %p", os.time() + 7 * 60 * 60)
+webhook.embed1.thumbnail = ""
+webhook.embed1.footer.text = "Versatile | Find World\n"..os.date("!%b-%d-%Y, %I:%M %p", os.time() + 7 * 60 * 60)
 if IDs ~= "" then
     webhook:edit(IDs)
 else
