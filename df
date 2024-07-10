@@ -9,8 +9,7 @@ for i, botz in pairs(getBots()) do
     end
     sleep(1000)
 end
-UseList = Bots[abc].UseList
-WorldList = Bots[abc].WorldList
+UseList = Bots[abc].File
 IDDirtFarm =Bots[abc].IDDirtFarm
 
 if jmlBot % 2 == 0 then
@@ -521,138 +520,7 @@ function farmDirt(world)
     end
 end
 
-function Lock()
-    for index, tile in ipairs(getTiles()) do
-        if tile.fg == 6 then
-            for i = -2,2 do
-                while getTile(tile.x+i,tile.y+2).fg ~= 0 or getTile(tile.x+i,tile.y+2).bg ~= 0  do
-                    punch(i,2)
-                    sleep(Delay.Punch)
-                end
-            end
-    -- dox
-            if Mode:upper() == "SL"  then
-                
-                while getTile(bot.x,bot.y-1).fg ~= 202 do
-                    place(202,0,-1)
-                    sleep(Delay.Place)
-                end
 
-
-            elseif Mode:upper() == "WL" then
-                while getTile(tile.x,tile.y-1).fg ~= 242 do
-                    place(242,0,-1)
-                    sleep(Delay.Place)
-                end
-            elseif Mode:upper() == "BOTH" then
-                while getTile(bot.x,bot.y-1).fg ~= 202 do
-                    place(202,0,-1)
-                    sleep(Delay.Place)
-                end
-                while getTile(tile.x-1,tile.y+1).bg ~= 0 do
-                    punch(-1,1)
-                    sleep(Delay.Punch)
-                end
-                bot:findPath(tile.x+1,tile.y)
-                sleep(600)
-                while getTile(tile.x+1,tile.y+1).bg ~= 0 do
-                    punch(0,1)
-                    sleep(Delay.Punch)
-                end
-                while getTile(tile.x+1,tile.y+1).fg ~= 242 do
-                    place(242,0,1)
-                    sleep(Delay.Place)
-                end
-                bot:findPath(tile.x,tile.y)
-                sleep(600)
-                for key, tile in pairs(getTiles()) do
-                    if tile.fg == 242 then
-                        bot:findPath(tile.x,tile.y-1)
-                        sleep(500)
-                        bot:wrench(tile.x,tile.y)
-                        sleep(500)
-                        bot:sendPacket(2,"action|dialog_return\ndialog_name|lock_edit\ntilex|" .. tile.x .. "|\ntiley|" .. tile.y .. "|\ncheckbox_public|1\ncheckbox_disable_music|0\ntempo|100\ncheckbox_disable_music_render|0\ncheckbox_set_as_home_world|0\nminimum_entry_level|1")
-                        sleep(1500)
-                    end
-                end
-                bot:findPath(tile.x,tile.y)
-                sleep(500)
-            end
-
-            while getTile(tile.x-2,tile.y+1).bg ~= 0 do
-                punch(-2,1)
-                sleep(Delay.Punch)
-            end
-
-            while getTile(tile.x+2,tile.y+1).bg ~= 0 do
-                punch(2,1)
-                sleep(Delay.Punch)
-            end
-
-            bot:findPath(tile.x-1,tile.y)
-            sleep(500)
-            while getTile(tile.x-1,tile.y+1).bg ~= 0 do
-                punch(0,1)
-                sleep(Delay.Punch)
-            end
-            while getTile(bot.x,bot.y+1).fg ~= IDDoor do
-                place(IDDoor,0,1)
-                sleep(Delay.Place)
-            end
-            bot:findPath(tile.x,tile.y)
-            sleep(500)
-            if UseSJ then
-                while getTile(bot.x-1,bot.y-1).fg ~= 2 do
-                    place(2,-1,-1)
-                    sleep(Delay.Place)
-                end
-                while getTile(bot.x+1,bot.y-1).fg ~= 226 do
-                    place(226,1,-1)
-                    sleep(Delay.Place)
-                end
-                punch(1,-1)
-                sleep(500)
-            else
-                while getTile(bot.x-1,bot.y-1).fg ~= 2 do
-                    place(2,-1,-1)
-                    sleep(Delay.Place)
-                end
-                while getTile(bot.x+1,bot.y-1).fg ~= 2 do
-                    place(2,1,-1)
-                    sleep(Delay.Place)
-                end
-            end
-            while getTile(bot.x-1,bot.y).fg ~= IDEntrance do
-                place(IDEntrance,-1,0)
-                sleep(Delay.Place)
-            end
-            while getTile(bot.x+1,bot.y).fg ~= IDEntrance do
-                place(IDEntrance,1,0)
-                sleep(Delay.Place)
-            end
-            -- up
-            for key, tile in pairs(getTiles()) do
-                if tile.fg == IDDoor then
-                    bot:findPath(tile.x,tile.y)
-                    sleep(500)
-                    bot:wrench(tile.x,tile.y)
-                    sleep(500)
-                    bot:sendPacket(2,"action|dialog_return\ndialog_name|door_edit\ntilex|"..tile.x.."|\ntiley|"..tile.y.."|\ndoor_name|kon\ndoor_target|\ndoor_id|"..IDDirtFarm.."\ncheckbox_locked|1")
-                    sleep(1500)
-                end
-            end
-            for _, tile in pairs(getTiles()) do
-                if tile.fg == 202 then
-                    bot:findPath(tile.x,tile.y+1)
-                    bot:wrench(tile.x,tile.y)
-                    sleep(500)
-                    bot:sendPacket(2,"action|dialog_return\n|dialog_name|lock_edit\ntilex|"..tile.x.."|\ntiley|"..(tile.y).."|\nbuttonClicked|recalcLock\n\ncheckbox_public|0\ncheckbox_ignore|1")
-                    sleep(1000)
-                end
-            end
-        end
-    end
-end
 function dirtFarm(world)
     breakDirt(world)
     sleep(100)
@@ -661,7 +529,19 @@ function dirtFarm(world)
         clearFarm(world)
         sleep(100)
 end
+function reads(fileJutun)
+    local fileName = fileJutun
+    local file = io.open(fileName, "r")
+    local lines = {}
 
+    if file then
+        for line in file:lines() do
+            table.insert(lines, line)
+        end
+        file:close()
+    end
+    return lines
+end
 function main()
     if TakePick and bot:getInventory():findItem(98) == 0 then
         warp(WorldTakePick,WorldTakePickID)
@@ -675,17 +555,7 @@ function main()
     bot:wear(98)
     sleep(500)
     if Multi then
-        for index, world in ipairs(ListMulti) do            
-            warp(world,IDMulti)
-            bot.auto_collect = true
-            bot.collect_interval = 50
-            dirtFarm(world)
-            table.insert(ListDone,world)
-            tulis(world.."|"..IDDirtFarm.."|"..bot.name)
-            webhook(world.." Done")
-        end
-    end
-    if UseList then
+    WorldList = reads(UseList)
         for _,world in pairs(WorldList) do
             warp(world,IDDirtFarm)
             bot.auto_collect = true
@@ -694,8 +564,18 @@ function main()
             table.insert(ListDone,world)
             tulis(world.."|"..IDDirtFarm.."|"..bot.name)
             webhook(world.." Done")
-        end
     end
 end
+WorldList = reads(UseList)
+for _,world in pairs(WorldList) do
+    warp(world,IDDirtFarm)
+    bot.auto_collect = true
+    bot.collect_interval = 50        
+    dirtFarm(world)
+    table.insert(ListDone,world)
+    tulis(world.."|"..IDDirtFarm.."|"..bot.name)
+    webhook(world.." Done")
 
-    main()
+end
+
+main()
