@@ -1,1 +1,550 @@
-print("SC FIND")
+getBot().legit_mode = true
+
+if use_wl then
+    usedItem["world_lock"] = 242
+end
+
+
+current_door = ""
+
+function scan_item(itemid)
+    local count = 0
+    for _, object in pairs(getObjects()) do
+        if object.id == itemid then
+            count = object.count + count
+        end
+    end
+
+    return count
+end
+
+getBot():getConsole().enabled = true
+
+function is_limit()
+    local console = getBot():getConsole()
+
+    function clear_console()
+        for i = 1, 50 do
+            console:append("")
+        end
+    end
+
+    for _, content in pairs(console.contents) do
+        if content:find "Oops, you've created too many worlds today. Try again tomorrow!" then
+            clear_console()
+            return true
+        end
+    end
+    return false
+end
+
+function is_nuked()
+    local console = getBot():getConsole()
+
+    local function clearConsole()
+        for i = 1, 50 do
+            console:append("")
+        end
+    end
+    for _, content in pairs(console.contents) do
+        if content:find "That world is inaccessible." then
+            clearConsole()
+            return true
+        end
+    end
+
+    return false
+end
+
+function warp(name, door)
+    _G.last_name = name
+    door = door or ""
+    _G.last_door = door
+    local tries = 0
+    getBot():warp(name, door)
+    while not getBot():isInWorld(name:upper()) do
+        sleep(6000)
+        if not getBot():isInWorld(name:upper()) then
+            getBot():warp(name, door)
+        end
+
+        tries = tries + 1
+
+        if tries >= 10 then
+            if is_limit() then
+                return false, "Limit"
+            elseif is_nuked() then
+                return false, "Nuked"
+            end
+        end
+    end
+    return true, "Success"
+end
+
+function take_requirement()
+    warp(storage.name, storage.door)
+
+    for name, item in pairs(usedItem) do
+        if scan_item(item) == 0 and getInventory():getItemCount(item) == 0 then
+            print("Not Enough Item: " .. item)
+            while scan_item(item) == 0 do
+                sleep(200)
+            end
+        end
+        for _, object in pairs(getObjects()) do
+            if object.id == item then
+                local obj_x = object.x // 32
+                local obj_y = object.y // 32
+
+                if #getBot():getPath(obj_x, obj_y) > 0 then
+                    find_path(obj_x, obj_y)
+                    sleep(1500)
+                    while not getBot():isInTile(obj_x, obj_y) do
+                        find_path(obj_x, obj_y)
+                        sleep(5000)
+                    end
+                else
+                    for i = -1, 1 do
+                        if #getBot():getPath(obj_x + i, obj_y) > 0 then
+                            find_path(obj_x + i, obj_y)
+                            sleep(1500)
+                            while not getBot():isInTile(obj_x + i, obj_y) do
+                                find_path(obj_x + i, obj_y)
+                                sleep(5000)
+                            end
+                            break
+                        end
+                    end
+                end
+                getBot():collectObject(object.oid, 3)
+                sleep(500)
+
+                getBot():setDirection(false)
+                if name == "door" and getInventory():getItemCount(item) > 1 then
+                    getBot():fastDrop(item, getInventory():getItemCount(item) - 1)
+                    while getInventory():getItemCount(item) > 1 do
+                        sleep(3500)
+                    end
+                    break
+                elseif name == "entrance" and getInventory():getItemCount(item) > 2 then
+                    getBot():fastDrop(item, getInventory():getItemCount(item) - 2)
+                    while getInventory():getItemCount(item) > 2 do
+                        sleep(3500)
+                    end
+                    break
+                elseif name == "lock" and getInventory():getItemCount(item) > 2 then
+                    getBot():fastDrop(item, getInventory():getItemCount(item) - 2)
+                    while getInventory():getItemCount(item) > 2 do
+                        sleep(3500)
+                    end
+                    break
+                elseif name == "jammer" and getInventory():getItemCount(item) > 1 then
+                    getBot():fastDrop(item, getInventory():getItemCount(item) - 1)
+                    while getInventory():getItemCount(item) > 1 do
+                        sleep(3500)
+                    end
+                    break
+                elseif name == "world_lock" and getInventory():getItemCount(item) > 1 then
+                    getBot():fastDrop(item, getInventory():getItemCount(item) - 1)
+                    while getInventory():getItemCount(item) > 1 do
+                        sleep(3500)
+                    end
+                    break
+                elseif name == "void_block" and getInventory():getItemCount(item) > 1 then
+                    getBot():fastDrop(item, getInventory():getItemCount(item) - 1)
+                    while getInventory():getItemCount(item) > 1 do
+                        sleep(3500)
+                    end
+                    break
+                end
+            end
+        end
+    end
+    sleep(200)
+end
+
+function dynamic_sleep(ms)
+    local ping = getBot():getPing()
+
+    sleep_amount = math.floor(ping * 0.10 * (ms * 0.10))
+    if sleep_amount <= 170 then
+        sleep_amount = sleep_amount + math.random(100, ms)
+    end
+    sleep(sleep_amount)
+end
+
+function reconnect()
+    if getBot().status ~= BotStatus.online then
+        while getBot().status ~= BotStatus.online do
+            sleep(10000)
+        end
+
+        warp(_G.last_name, _G.last_door)
+        find_path(_G.last_x, _G.last_y)
+    end
+end
+
+function find_path(tilex, tiley)
+    _G.last_x = tilex
+    _G.last_y = tiley
+    getBot():findPath(tilex, tiley)
+    sleep(76)
+    while not getBot():isInTile(tilex, tiley) do
+        sleep(1000)
+        while not getBot():isInWorld() do
+            sleep(2000)
+        end
+        getBot():findPath(tilex, tiley)
+        if getBot():isInTile(tilex, tiley) then
+            break
+        end
+    end
+end
+
+function reapply_wl(tilex, tiley)
+    addEvent(Event.variantlist, function(v, k)
+        if v:get(0):getString() == "OnDialogRequest" and v:get(1):getString():find("end_dialog|lock_edit") then
+            local raw_text = RTVAR.new(v:get(1):getString())
+            local tilesx, tilesy
+            for _, data in pairs(raw_text:getParams('embed_data')) do
+                if data.parameters[1] == "tilex" then
+                    tilesx = data.parameters[2]
+                elseif data.parameters[1] == "tiley" then
+                    tilesy = data.parameters[2]
+                end
+            end
+
+            local raw_packet = RTVAR.new()
+            raw_packet:append("action", "dialog_return", false)
+            raw_packet:append("dialog_name", "lock_edit", false)
+            raw_packet:append("tilex", tilesx, true)
+            raw_packet:append("tiley", tilesy, true)
+            raw_packet:append("checkbox_public", 1, false)
+            raw_packet:append("checkbox_disable_music", 0, false)
+            raw_packet:append("tempo", 100, false)
+            raw_packet:append("checkbox_disable_music_render", 0, false)
+            raw_packet:append("checkbox_set_as_home_world", 0, false)
+            raw_packet:append("checkbox_disable_music", 1, false)
+            runThread(function(raw_packet)
+                sleep(120)
+                getBot():sendPacket(2, raw_packet)
+            end, raw_packet:dump())
+        end
+    end)
+
+    runThread(function(tilex, tiley)
+        getBot():wrench(tilex, tiley)
+        sleep(2500)
+        getBot():wrench(tilex, tiley)
+    end, tilex, tiley)
+    listenEvents(5)
+    removeEvent(Event.variantlist)
+    sleep(2500)
+end
+
+function reapply_lock(tilex, tiley)
+    addEvent(Event.variantlist, function(v, k)
+        if v:get(0):getString() == "OnDialogRequest" and v:get(1):getString():find("end_dialog|lock_edit") then
+            local raw_text = RTVAR.new(v:get(1):getString())
+            local tilesx, tilesy
+            for _, data in pairs(raw_text:getParams('embed_data')) do
+                if data.parameters[1] == "tilex" then
+                    tilesx = data.parameters[2]
+                elseif data.parameters[1] == "tiley" then
+                    tilesy = data.parameters[2]
+                end
+            end
+
+            local raw_packet = RTVAR.new()
+            raw_packet:append("action", "dialog_return", false)
+            raw_packet:append("dialog_name", "lock_edit", false)
+            raw_packet:append("tilex", tilesx, true)
+            raw_packet:append("tiley", tilesy, true)
+            raw_packet:append("buttonClicked", "recalcLock\n", false)
+            raw_packet:append("checkbox_public", 0, false)
+            raw_packet:append("checkbox_ignore", 1, false)
+            runThread(function(raw_packet)
+                sleep(120)
+                getBot():sendPacket(2, raw_packet)
+            end, raw_packet:dump())
+        elseif v:get(0):getString() == "OnPlayPositioned" and v:get(1):getString() == "audio/use_lock.wav" then
+            unlistenEvents()
+        end
+    end)
+
+    runThread(function(tilex, tiley)
+        getBot():wrench(tilex, tiley)
+        sleep(2500)
+        getBot():wrench(tilex, tiley)
+    end, tilex, tiley)
+    listenEvents(120)
+    removeEvent(Event.variantlist)
+    sleep(2500)
+end
+
+function reapply_door(tilex, tiley)
+    addEvent(Event.variantlist, function(v, k)
+        if v:get(0):getString() == "OnDialogRequest" and v:get(1):getString():find("end_dialog|door_edit") then
+            local raw_text = RTVAR.new(v:get(1):getString())
+            local tilex, tiley
+            for _, data in pairs(raw_text:getParams('embed_data')) do
+                if data.parameters[1] == "tilex" then
+                    tilex = data.parameters[2]
+                elseif data.parameters[1] == "tiley" then
+                    tiley = data.parameters[2]
+                end
+            end
+
+            local raw_packet = RTVAR.new()
+            raw_packet:append("action", "dialog_return", false)
+            raw_packet:append("dialog_name", "door_edit", false)
+            raw_packet:append("tilex", tilex, true)
+            raw_packet:append("tiley", tiley, true)
+            raw_packet:append("door_name", door.label, false)
+            raw_packet:append("door_target", door.destination, false)
+            raw_packet:append("door_id", current_door, false)
+            raw_packet:append("checkbox_lock", 0, false)
+
+            runThread(function(raw_packet)
+                sleep(250)
+                getBot():sendPacket(2, raw_packet)
+            end, raw_packet:dump())
+        end
+    end)
+
+    runThread(function(tilex, tiley)
+        getBot():wrench(tilex, tiley)
+        sleep(2500)
+        getBot():wrench(tilex, tiley)
+    end, tilex, tiley)
+    listenEvents(5)
+    removeEvent(Event.variantlist)
+    sleep(2000)
+end
+
+function get_main()
+    for _, tile in pairs(getTiles()) do
+        if tile.fg == 6 then
+            return tile.x, tile.y
+        end
+    end
+    return -1, -1
+end
+
+function secure_world()
+    if door.random_id then
+        current_door = generate_door()
+    else
+        current_door = door.id
+    end
+    default_x, default_y = get_main()
+    while getTile(default_x + 1, default_y - 1).fg == 0 do
+        reconnect()
+        getBot():place(default_x + 1, default_y - 1, usedItem.jammer)
+        dynamic_sleep(500)
+    end
+
+    while getTile(default_x + 1, default_y - 1).flags == 0 do
+        reconnect()
+        getBot():hit(default_x + 1, default_y - 1)
+        sleep(1000)
+    end
+
+    if use_wl then
+        while getTile(default_x + 1, default_y).fg == 0 do
+            reconnect()
+            getBot():place(default_x + 1, default_y, usedItem.world_lock)
+            dynamic_sleep(500)
+        end
+
+        while getTile(default_x - 1, default_y).fg == 0 do
+            reconnect()
+            getBot():place(default_x - 1, default_y, usedItem.entrance)
+            dynamic_sleep(500)
+        end
+        while getTile(default_x, default_y - 1).fg == 0 do
+            reconnect()
+            getBot():place(default_x, default_y - 1, usedItem.entrance)
+            dynamic_sleep(500)
+        end
+        while getTile(default_x - 1, default_y - 1).fg == 0 do
+            reconnect()
+            getBot():place(default_x - 1, default_y - 1, usedItem.lock)
+            dynamic_sleep(500)
+        end
+    else
+        while getTile(default_x, default_y - 1).fg == 0 do
+            reconnect()
+            getBot():place(default_x, default_y - 1, usedItem.lock)
+            dynamic_sleep(500)
+        end
+
+        while getTile(default_x - 1, default_y).fg == 0 do
+            reconnect()
+            getBot():place(default_x - 1, default_y, usedItem.entrance)
+            dynamic_sleep(500)
+        end
+        while getTile(default_x + 1, default_y).fg == 0 do
+            reconnect()
+            getBot():place(default_x + 1, default_y, usedItem.entrance)
+            dynamic_sleep(500)
+        end
+
+        while getTIle(default_x - 1, default_y - 1).fg == 0 do
+            reconnect()
+            getBot():place(default_x - 1, default_y - 1, usedItem.void_block)
+            dynamic_sleep(500)
+        end
+    end
+
+    for x = -2, 2 do
+        for y = 1, 2 do
+            if not (x == -1 and y == 1) and not (x == 0 and y == 1) and not (x == 1 and y == 1) then
+                while getTile(default_x + x, default_y + y).bg > 0 do
+                    reconnect()
+                    getBot():hit(default_x + x, default_y + y)
+                    dynamic_sleep(300)
+                end
+            end
+        end
+    end
+
+    if use_wl then
+        reapply_wl(default_x + 1, default_y)
+        reapply_lock(default_x - 1, default_y - 1)
+    else
+        reapply_lock(default_x, default_y - 1)
+    end
+
+    if lock_door then
+        find_path(1, 1)
+        sleep(5000)
+        reconnect()
+        while getTile(1, 2).fg == 0 do
+            reconnect()
+            getBot():place(1, 2, usedItem.lock)
+            dynamic_sleep(500)
+        end
+    end
+
+    find_path(0, 2)
+    while getTile(0, 2).fg == 0 do
+        reconnect()
+        getBot():place(0, 2, usedItem.door)
+        dynamic_sleep(500)
+    end
+
+    if lock_door then
+        reapply_lock(1, 2)
+    end
+    sleep(1000)
+    reapply_door(0, 2)
+end
+
+function generate_string()
+    if world_format.readdable then
+        local origin = math.floor(world_format.world_length * 0.7)
+        local randomizer = world_format.world_length - origin
+        local client = HttpClient.new()
+        client.url = "https://random-word.ryanrk.com/api/en/word/random/?minlength=" ..
+            world_format.world_length .. "&" .. "maxlength=" .. world_format.world_length
+
+        RANDOM_STRING = client:request().body:sub(3, -3):upper()
+        str = ""
+        for i = 1, randomizer do
+            GEN = math.random(1, string.len(RANDOM_STRING))
+            str = str .. RANDOM_STRING:sub(GEN, GEN)
+        end
+
+
+
+        local enigma = math.random(1, 3)
+        if enigma == 1 then
+            generated_string = RANDOM_STRING .. str
+        elseif enigma == 2 then
+            generated_string = str .. RANDOM_STRING
+        elseif enigma == 3 then
+            generated_string = RANDOM_STRING:sub(1, math.floor(string.len(RANDOM_STRING) / 2)) ..
+                str .. RANDOM_STRING:sub(math.floor(string.len(RANDOM_STRING) / 2), -1)
+        end
+
+        return generated_string:sub(1, world_format.world_length):gsub("[%p%s]", "")
+    else
+        if world_format.with_number then
+            RAW_TEXT = "ABCDEFGHIJKLMOPQRSTUVWXYZ1234567890"
+        else
+            RAW_TEXT = "ABCDEFGHIJKLMOPQRSTUVWXYZ"
+        end
+
+        local generate_string = ""
+
+        for i = 1, world_format.world_length do
+            ENIGMA = math.random(1, string.len(RAW_TEXT))
+            generate_string = generate_string .. RAW_TEXT:sub(ENIGMA, ENIGMA)
+        end
+
+        return generate_string
+    end
+end
+
+function generate_door()
+    RAW_TEXT = "ABCDEFGHIJKLMOPQRSTUVWXYZ"
+    local generate_string = ""
+
+    for i = 1, 6 do
+        ENIGMA = math.random(1, #RAW_TEXT)
+        generate_string = generate_string .. RAW_TEXT:sub(ENIGMA, ENIGMA)
+    end
+
+    return generate_string
+end
+
+function safe()
+    all_lock_items = {}
+
+    for _, lock in pairs(getInfos()) do
+        if lock.name:find(" Lock") then
+            table.insert(all_lock_items, lock.id)
+        end
+    end
+
+
+    for _, tile in pairs(getTiles()) do
+        for __, lock in pairs(all_lock_items) do
+            if tile.fg == lock then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function main()
+    take_requirement()
+
+    ::START::
+    _G.generated = generate_string()
+    state, status = warp(generated)
+
+    if state or status == "Nuked" then
+        current_door = ""
+        if safe() then
+            secure_world()
+            append(resultFile .. getBot().index .. ".txt", generated .. "|" .. current_door .. "\n")
+        else
+            goto START
+        end
+    elseif status == "Limit" then
+        getBot().auto_reconnect = false
+        getBot():disconnect()
+        print("Limit World Reached")
+    end
+end
+
+for i = 1, total_find do
+    main()
+end
+
+getBot().auto_reconnect = false
+getBot():disconnect()
+error("Success Doing All Job")
