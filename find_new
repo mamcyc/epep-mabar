@@ -1,6 +1,3 @@
-RS_AUTOFIND = {} --DONT TOUCH | AUTH by Renter Script
-
-
 getBot().legit_mode = true
 
 if use_wl then
