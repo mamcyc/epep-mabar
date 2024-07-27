@@ -1,3 +1,5 @@
+RS_AUTODF = {}
+
 bot = getBot()
 bot.move_interval = Bot_Settings.move_interval
 bot.legit_mode = Bot_Settings.legit_mode
