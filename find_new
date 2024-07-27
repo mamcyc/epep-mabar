@@ -1,3 +1,6 @@
+RS_AUTOFIND = {} --DONT TOUCH | AUTH by Renter Script
+
+
 getBot().legit_mode = true
 
 if use_wl then
@@ -61,10 +64,13 @@ function warp(name, door)
     door = door or ""
     _G.last_door = door
     local tries = 0
-    getBot():warp(name)
+    getBot():warp(name, door)
     while not getBot():isInWorld(name:upper()) do
-        getBot():warp(name)
         sleep(6000)
+        if not getBot():isInWorld(name:upper()) then
+            getBot():warp(name, door)
+        end
+
         tries = tries + 1
 
         if tries >= 10 then
@@ -74,11 +80,6 @@ function warp(name, door)
                 return false, "Nuked"
             end
         end
-    end
-
-    if getBot():isInWorld(name:upper()) then
-        getBot():warp(name, door)
-        sleep(1000)
     end
     return true, "Success"
 end
@@ -124,26 +125,40 @@ function take_requirement()
                 getBot():setDirection(false)
                 if name == "door" and getInventory():getItemCount(item) > 1 then
                     getBot():fastDrop(item, getInventory():getItemCount(item) - 1)
+                    while getInventory():getItemCount(item) > 1 do
+                        sleep(3500)
+                    end
                     break
                 elseif name == "entrance" and getInventory():getItemCount(item) > 2 then
                     getBot():fastDrop(item, getInventory():getItemCount(item) - 2)
+                    while getInventory():getItemCount(item) > 2 do
+                        sleep(3500)
+                    end
                     break
                 elseif name == "lock" and getInventory():getItemCount(item) > 2 then
                     getBot():fastDrop(item, getInventory():getItemCount(item) - 2)
+                    while getInventory():getItemCount(item) > 2 do
+                        sleep(3500)
+                    end
                     break
                 elseif name == "jammer" and getInventory():getItemCount(item) > 1 then
                     getBot():fastDrop(item, getInventory():getItemCount(item) - 1)
+                    while getInventory():getItemCount(item) > 1 do
+                        sleep(3500)
+                    end
                     break
                 elseif name == "world_lock" and getInventory():getItemCount(item) > 1 then
                     getBot():fastDrop(item, getInventory():getItemCount(item) - 1)
+                    while getInventory():getItemCount(item) > 1 do
+                        sleep(3500)
+                    end
                     break
                 elseif name == "void_block" and getInventory():getItemCount(item) > 1 then
                     getBot():fastDrop(item, getInventory():getItemCount(item) - 1)
+                    while getInventory():getItemCount(item) > 1 do
+                        sleep(3500)
+                    end
                     break
-                end
-
-                while getInventory():getItemCount(item) > 1 do
-                    sleep(1000)
                 end
             end
         end
@@ -215,21 +230,19 @@ function reapply_wl(tilex, tiley)
             raw_packet:append("checkbox_disable_music", 1, false)
             runThread(function(raw_packet)
                 sleep(120)
-                getBot():sendPacket(2, raw_packet:dump())
-            end, raw_packet)
+                getBot():sendPacket(2, raw_packet)
+            end, raw_packet:dump())
         end
     end)
 
     runThread(function(tilex, tiley)
-        sleep(290)
         getBot():wrench(tilex, tiley)
-        sleep(600)
-        getBot():wrench(tilex, tiley)
-        sleep(1200)
+        sleep(2500)
         getBot():wrench(tilex, tiley)
     end, tilex, tiley)
     listenEvents(5)
     removeEvent(Event.variantlist)
+    sleep(2500)
 end
 
 function reapply_lock(tilex, tiley)
@@ -255,23 +268,21 @@ function reapply_lock(tilex, tiley)
             raw_packet:append("checkbox_ignore", 1, false)
             runThread(function(raw_packet)
                 sleep(120)
-                getBot():sendPacket(2, raw_packet:dump())
-            end, raw_packet)
+                getBot():sendPacket(2, raw_packet)
+            end, raw_packet:dump())
         elseif v:get(0):getString() == "OnPlayPositioned" and v:get(1):getString() == "audio/use_lock.wav" then
             unlistenEvents()
         end
     end)
 
     runThread(function(tilex, tiley)
-        sleep(290)
         getBot():wrench(tilex, tiley)
-        sleep(600)
-        getBot():wrench(tilex, tiley)
-        sleep(1200)
+        sleep(2500)
         getBot():wrench(tilex, tiley)
     end, tilex, tiley)
     listenEvents(120)
     removeEvent(Event.variantlist)
+    sleep(2500)
 end
 
 function reapply_door(tilex, tiley)
@@ -298,22 +309,20 @@ function reapply_door(tilex, tiley)
             raw_packet:append("checkbox_lock", 0, false)
 
             runThread(function(raw_packet)
-                sleep(120)
-                getBot():sendPacket(2, raw_packet:dump())
-            end, raw_packet)
+                sleep(250)
+                getBot():sendPacket(2, raw_packet)
+            end, raw_packet:dump())
         end
     end)
 
     runThread(function(tilex, tiley)
-        sleep(290)
         getBot():wrench(tilex, tiley)
-        sleep(600)
-        getBot():wrench(tilex, tiley)
-        sleep(1200)
+        sleep(2500)
         getBot():wrench(tilex, tiley)
     end, tilex, tiley)
     listenEvents(5)
     removeEvent(Event.variantlist)
+    sleep(2000)
 end
 
 function get_main()
