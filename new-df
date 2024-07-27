@@ -1,0 +1,461 @@
+bot = getBot()
+bot.move_interval = Bot_Settings.move_interval
+bot.legit_mode = Bot_Settings.legit_mode
+bot.move_range = Bot_Settings.move_range
+list_done = {}
+uptime = os.time()
+
+
+for world in io.lines(World.file_name) do
+    current_farms, current_door = world:match("([^|]+)|([^|]+)")
+    list_done[current_farms] = ""
+end
+
+bot_count = (function() if #getBots() % 2 == 0 then return #getBots() + 1 else return #getBots() end end)()
+
+function getStatus(bot)
+    for x in pairs(BotStatus) do
+        if BotStatus[x] == bot.status then
+            if x:find("_") then
+                x1, x2 = x:match("(.+)_(.+)")
+                x = x1:gsub("^%l", string.upper) .. " " .. x2:gsub("^%l", string.upper)
+                return x:gsub("^%l", string.upper)
+            else
+                x = x:sub(1, 1):upper() .. x:sub(2)
+                return x
+            end
+            break
+        end
+    end
+end
+
+function formatTime(seconds)
+    if type(seconds) == "string" then
+        return "..."
+    end
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local secs = seconds % 60
+
+    if hours > 0 then
+        return string.format("%d Hours %d Minutes %d Seconds", hours, minutes, secs)
+    else
+        return string.format("%d Minutes %d Seconds", minutes, secs)
+    end
+end
+
+function get_bot()
+    local text = ""
+    for _, bot in ipairs(getBots()) do
+        status = getStatus(bot)
+        text = text ..
+            bot.name:upper() ..
+            " [" ..
+            bot:getPing() ..
+            "] " ..
+            (function()
+                if status ~= "Online" then
+                    return "<a:offline:1160758900279234670> "
+                else
+                    return
+                    "<a:online:1160758807790624859>"
+                end
+            end)() .. "\n"
+    end
+    return text
+end
+
+function get_world()
+    local text = ""
+    for world_name, time in pairs(list_done) do
+        text = text .. world_name .. " (" .. formatTime(time) .. ")\n"
+    end
+    return text
+end
+
+function sendHook(TEXT)
+    if bot.index > 1 then return end
+    local WH = Webhook.new(Webhooks.link)
+    WH.embed1.use = true
+    WH.embed1.title = "Auto Dirt Farm"
+    WH.embed1.description = TEXT .. "\nUpdated: <t:" .. os.time() .. ":R>"
+    WH.embed1:addField("<:TuyulRapih:1257396889301553183> BOT LIST", get_bot(), false)
+    WH.embed1:addField("<:EncapsulatedGalaxy:1263315810542424169> WORLD LIST (" .. #list_done .. ")",
+        get_world() .. "\n" .. "Uptime <t:" .. uptime .. ":R>", false)
+    if Webhooks.id > 0 then
+        WH:edit(Webhooks.id)
+    else
+        WH:send()
+    end
+end
+
+function punch(tile_x, tile_y)
+    if getLocal().posx then
+        return bot:hit(getLocal().posx // 32 + tile_x, getLocal().posy // 32 + tile_y)
+    end
+    return nil
+end
+
+function findItem(item_id)
+    return bot:getInventory():getItemCount(item_id)
+end
+
+function place(item_id, tile_x, tile_y)
+    if getLocal().posx then
+        return bot:place(getLocal().posx // 32 + tile_x, getLocal().posy // 32 + tile_y, item_id)
+    end
+    return nil
+end
+
+function drop(item_id, count)
+    return bot:fastDrop(item_id, count)
+end
+
+function warp(world_name, world_door)
+    _G.last_world = world_name
+    _G.last_door = world_door
+
+    while not getBots()[bot.index]:isInWorld(world_name:upper()) do
+        getBots()[bot.index]:warp(world_name)
+        dynamic_sleep(6000)
+    end
+
+    if getBots()[bot.index]:isInWorld(world_name:upper()) then
+        getBots()[bot.index]:warp(world_name, world_door)
+        dynamic_sleep(3000)
+    end
+end
+
+function find_path(tile_x, tile_y)
+    _G.last_x = tile_x
+    _G.last_y = tile_y
+
+    while not bot:isInTile(tile_x, tile_y) do
+        bot:findPath(tile_x, tile_y)
+        dynamic_sleep(100)
+    end
+end
+
+function take_float(item_id, count)
+    for _, obj in pairs(getObjects()) do
+        if obj.id == item_id then
+            local path_x = obj.x // 32
+            local path_y = obj.y // 32
+
+            if #bot:getPath(path_x, path_y) > 0 then
+                find_path(path_x, path_y)
+            else
+                for x = -1, 1 do
+                    for y = -1, 1 do
+                        if #bot:getPath(path_x + x, path_y + y) > 0 then
+                            find_path(path_x + x, path_y + y)
+                            goto PASS_FINDPATH
+                        end
+                    end
+                end
+            end
+            ::PASS_FINDPATH::
+
+            while findItem(item_id) == 0 or findItem(item_id) < count do
+                getBot():collectObject(obj.oid, 3)
+                dynamic_sleep(3000)
+            end
+
+            bot:setDirection(false)
+
+            while findItem(item_id) > count do
+                bot:findOutput()
+                dynamic_sleep(700)
+                drop(item_id, findItem(item_id) - count)
+            end
+
+            if findItem(item_id) == count then
+                return
+            end
+        end
+    end
+end
+
+function dynamic_sleep(ms)
+    local ping = bot:getPing()
+
+    sleep_amount = math.floor(ping * 0.10 * (ms * 0.10))
+    if sleep_amount <= 170 then
+        sleep_amount = sleep_amount + math.random(50, ms)
+    end
+    sleep(sleep_amount)
+end
+
+function reconnect()
+    if getBots()[bot.index].status ~= BotStatus.online then
+        while getBots()[bot.index].status ~= BotStatus.online do
+            dynamic_sleep(20000)
+            if getBots()[bot.index].status == BotStatus.account_banned then
+                bot.auto_reconnect = false
+                error("Bot Banned")
+            end
+        end
+
+        warp(_G.last_world, _G.last_door)
+        find_path(_G.last_x, _G.last_y)
+    end
+end
+
+function dropall()
+    sendHook("Dropping Trash")
+    bot.auto_collect = false
+    for _, trash in pairs(Script_Settings.save_trash.trash_id) do
+        for _, tile in pairs(getBot():getWorld():getTiles()) do
+            if tile.fg == Script_Settings.save_trash.pos_drop or tile.bg == Script_Settings.save_trash.pos_drop then
+                find_path(tile.x - 1, tile.y)
+                reconnect()
+                bot:setDirection(false)
+                dynamic_sleep(100)
+                bot:findOutput()
+                dynamic_sleep(700)
+                drop(trash, findItem(trash))
+                reconnect()
+                dynamic_sleep(700)
+            end
+            if findItem(trash) == 0 then
+                break
+            end
+        end
+    end
+end
+
+function clear()
+    for _, trash in pairs(Script_Settings.save_trash.trash_id) do
+        if findItem(trash) >= 190 then
+            sendHook("Trashing")
+            if Script_Settings.save_trash.enabled then
+                warp(Script_Settings.save_trash.world_name, Script_Settings.save_trash.world_id)
+                dropall()
+                warp(_G.current_farm, _G.current_door)
+                bot.auto_collect = true
+            else
+                bot:fastTrash(trash, findItem(trash))
+                dynamic_sleep(1500)
+            end
+        end
+    end
+end
+
+function farm_dirt()
+    for _, tile in pairs(getTiles()) do
+        if tile.x >= 3 and tile.x <= 23 and ((tile.y == 25 and not Bot_Settings.multibot) or tile.y == (25 + 2 * (bot.index - 1))) then
+            if getTile(tile.x, tile.y):canHarvest() or (getTile(tile.x, tile.y).fg == 0 and findItem(3) > 0) then
+                find_path(tile.x, tile.y)
+                while getTile(tile.x, tile.y):canHarvest() do
+                    punch(0, 0)
+                    sleep(Bot_Settings.delay_punch)
+                    reconnect()
+                end
+
+                while getTile(tile.x, tile.y).fg == 0 and findItem(3) > 0 do
+                    place(3, 0, 0)
+                    sleep(Bot_Settings.delay_punch)
+                    reconnect()
+                end
+            end
+            if findItem(2) >= 100 then
+                break
+            end
+        end
+    end
+end
+
+function dirtFarm()
+    bot.collect_range = 2
+
+    sendHook("Clearing Left And Right")
+    for width = 0, 99 do
+        for height = 23, 53 do
+            if (function()
+                    if Script_Settings.use_platform.enabled then
+                        return (width <= 1 or width >= 98) and getTile(width, height).bg > 0
+                    else
+                        return (width == 0 or width == 99) and getTile(width, height).bg > 0
+                    end
+                end)() then
+                reconnect()
+                find_path(width, height - 1)
+                while getTile(width, height).bg > 0 do
+                    punch(0, 1)
+                    dynamic_sleep(Bot_Settings.delay_punch)
+                    reconnect()
+                end
+            end
+        end
+    end
+
+    sendHook("Making Bottom Row")
+
+    if Script_Settings.use_platform.enabled then
+        if not Bot_Settings.multibot or bot.index == 1 then
+            sendHook("Putting Plat")
+            for _, tile in pairs(getBot():getWorld():getTiles()) do
+                reconnect()
+                if findItem(Script_Settings.use_platform.plat_id) < 52 and findItem(Script_Settings.use_platform.plat_id) == 0 then
+                    bot.auto_collect = false
+                    sendHook("Taking Platform!")
+                    warp(Script_Settings.use_platform.world_name, Script_Settings.use_platform.world_id)
+                    take_float(Script_Settings.use_platform.plat_id, 52)
+                    warp(_G.current_farm, _G.current_door)
+                    bot.auto_collect = true
+                end
+
+                if tile.y % 2 == 0 and getTile(tile.x, tile.y).fg == 0 and tile.x == 1 and tile.y <= 53 and tile.y > 0 then
+                    find_path(tile.x, tile.y - 1)
+                    while getTile(tile.x, tile.y).fg == 0 do
+                        place(Script_Settings.use_platform.plat_id, 0, 1)
+                        dynamic_sleep(Bot_Settings.delay_place)
+                        reconnect()
+                    end
+                end
+            end
+
+            for _, tile in pairs(getBot():getWorld():getTiles()) do
+                if tile.y % 2 == 0 and getTile(tile.x, tile.y).fg == 0 and tile.x == 98 and tile.y <= 53 and tile.y > 0 then
+                    find_path(tile.x, tile.y - 1)
+                    while getTile(tile.x, tile.y).fg == 0 do
+                        place(Script_Settings.use_platform.plat_id, 0, 1)
+                        dynamic_sleep(Bot_Settings.delay_place)
+                        reconnect()
+                    end
+                end
+            end
+        end
+    end
+    clearConsole()
+
+    for _, tile in pairs(getBot():getWorld():getTiles()) do
+        if (not Bot_Settings.multibot or ((tile.y + 1) % bot_count) == bot.index - 1) and tile.y % 2 == 1 and tile.y <= 53 and getTile(tile.x, tile.y).bg > 0 then
+            find_path(tile.x - 1, tile.y)
+            while getTile(tile.x, tile.y).bg > 0 do
+                punch(1, 0)
+                dynamic_sleep(Bot_Settings.delay_punch)
+                reconnect()
+            end
+        end
+        clear()
+    end
+
+    for _, tile in pairs(getBot():getWorld():getTiles()) do
+        if tile.y % 2 == 1 and tile.y <= 53 and getTile(tile.x, tile.y).bg > 0 then
+            find_path(tile.x - 1, tile.y)
+            while getTile(tile.x, tile.y).bg > 0 do
+                punch(1, 0)
+                dynamic_sleep(Bot_Settings.delay_punch)
+                reconnect()
+            end
+        end
+        clear()
+    end
+
+    for _, tile in pairs(getBot():getWorld():getTiles()) do
+        if getTile(tile.x, tile.y).fg == 4 then
+            find_path(tile.x, tile.y - 1)
+            while getTile(tile.x, tile.y).fg == 4 do
+                punch(0, 1)
+                dynamic_sleep(Bot_Settings.delay_punch)
+                reconnect()
+            end
+        end
+    end
+
+    sendHook("Making Top Row")
+
+    if findItem(3) > 0 then
+        for __, tile in pairs(getBot():getWorld():getTiles()) do
+            while findItem(2) == 0 and tile.y % 2 == 0 and getTile(tile.x, tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0 do
+                farm_dirt()
+                dynamic_sleep(1000)
+            end
+
+            if (not Bot_Settings.multibot or ((tile.y + 1) % (bot_count)) == bot.index - 1) and tile.y % 2 == 0 and getTile(tile.x, tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0 then
+                find_path(tile.x, tile.y - 1)
+                while getTile(tile.x, tile.y).fg == 0 do
+                    place(2, 0, 1)
+                    dynamic_sleep(Bot_Settings.delay_place)
+                    reconnect()
+                end
+            end
+        end
+
+        for _, tile in pairs(getBot():getWorld():getTiles()) do
+            while findItem(2) == 0 and tile.y % 2 == 0 and getTile(tile.x, tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0 do
+                farm_dirt()
+                dynamic_sleep(10000)
+            end
+
+            if tile.y % 2 == 0 and getTile(tile.x, tile.y).fg == 0 and tile.x > 0 and tile.x < 99 and tile.y <= 53 and tile.y > 0 then
+                find_path(tile.x, tile.y - 1)
+                while getTile(tile.x, tile.y).fg == 0 do
+                    place(2, 0, 1)
+                    dynamic_sleep(Bot_Settings.delay_place)
+                    reconnect()
+                end
+            end
+        end
+    end
+
+    for __, tile in pairs(getBot():getWorld():getTiles()) do
+        if tile.fg == 3 and (not Multi or ((tile.y + 1) % bot_count) == bot.index - 1) then
+            find_path(tile.x, tile.y)
+            while getTile(tile.x, tile.y).fg == 3 do
+                punch(0, 0)
+                dynamic_sleep(Bot_Settings.delay_punch)
+                reconnect()
+            end
+
+            clear()
+        end
+    end
+
+    for __, tile in pairs(getBot():getWorld():getTiles()) do
+        if tile.fg == 3 then
+            find_path(tile.x, tile.y)
+            while getTile(tile.x, tile.y).fg == 3 do
+                punch(0, 0)
+                dynamic_sleep(Bot_Settings.delay_punch)
+                reconnect()
+            end
+            clear()
+        end
+    end
+    sendHook("DF Created!")
+end
+
+sendHook("SCRIPT STARTED")
+sleep(5000)
+
+function main()
+    if Script_Settings.take_pickaxe.enabled and findItem(98) == 0 then
+        warp(Script_Settings.take_pickaxe.world_name, Script_Settings.take_pickaxe.world_id)
+        take_float(98, 1)
+
+        while not bot:getInventory():getItem(98).isActive do
+            bot:use(98)
+            dynamic_sleep(5000)
+        end
+    end
+
+    for world_name in io.lines(World.file_name) do
+        _G.current_farm, _G.current_door = world_name:match("([^|]+)|([^|]+)")
+        _G.start_time = os.time()
+        sendHook("Trying DF at " .. _G.current_farm)
+        warp(_G.current_farm, _G.current_door)
+        bot.auto_collect = true
+        bot.collect_interval = 50
+        dirtFarm()
+        list_done[_G.current_farm] = os.difftime(os.time(), _G.start_time)
+        if bot.index == 1 then
+            append(World.result_file_name, _G.current_farm .. "|" .. _G.current_door .. "\n")
+        end
+
+        sendHook(world_name .. " Done")
+    end
+end
+
+main()
