@@ -5,11 +5,6 @@ for i, bots in pairs(getBots()) do
     indexLast = i
 end
 
-bot = getBot()
-bot.legit_mode = true
-bot.auto_reconnect = delayReconnect
-bot.move_range = 3
-bot.move_interval = 235
 world = ""
 doorFarm = ""
 totalFarm = 0
