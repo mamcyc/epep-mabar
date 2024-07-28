@@ -6,7 +6,7 @@ for i, bots in pairs(getBots()) do
 end
 
 bot = getBot()
-bot.legit_mode = botAnimation
+bot.legit_mode = true
 bot.auto_reconnect = delayReconnect
 bot.move_range = botMoveRange
 bot.move_interval = botMoveInterval
