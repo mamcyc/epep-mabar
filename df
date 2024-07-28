@@ -1,329 +1,227 @@
-for i, bots in pairs(getBots()) do
-    if bots.name == getBot().name then
-        indexBot = i
-    end
-    indexLast = i
-end
-
-world = ""
-doorFarm = ""
-totalFarm = 0
-worldListBot = {}
-tree = {}
-
-dividerSSeed = math.ceil(indexLast / #storageWorld)
-worldSeed = storageWorld[math.ceil(indexBot / dividerSSeed)]
-
-function place(id, tile_x, tile_y)
-    return getBot():place(getLocal().posx // 32 + tile_x, getLocal().posy // 32 + tile_y, id)
-end
-
-function split(inputstr, sep)
-    if sep == nil then
-        sep = "%s"
-    end
-    local t = {}
-    for str in string.gmatch(inputstr, "([^" .. sep .. "]+)") do
-        table.insert(t, str)
-    end
-    return t
-end
-
-function isPlantable(tile)
-    local tempTile = getTile(tile.x, tile.y + 1)
-    if not tempTile.fg then
-        return false
-    end
-
-    local collision = getInfo(tempTile.fg).collision_type
-    return tempTile and (collision == 1 or collision == 2)
-end
-
-function reconnect()
-    if getBot().status ~= BotStatus.online then
-        while getBot().status ~= BotStatus.online do
-            sleep(10000)
-        end
-        warp(_G.last_world, _G.last_door)
-        find_path(_G.last_x, _G.last_y)
-    end
-end
-
-function is_nuked()
-    local console = getBot():getConsole()
-
-    local function clearConsole()
-        for i = 1, 50 do
-            console:append("")
-        end
-    end
-    for _, content in pairs(console.contents) do
-        if content:find "That world is inaccessible." then
-            clearConsole()
-            return true
-        end
-    end
-
-    return false
-end
-
-function warp(name, door)
-    _G.last_world = name
-    _G.last_door = door
-    getBot():warp(name)
-    local tries = 0
-    while not getBot():isInWorld(name:upper()) do
-        tries = tries + 1
-        sleep(5000)
-        if tries >= 6 and is_nuked() then
-            return false
-        else
-            getBot():warp(name)
-        end
-    end
-
-    if getBot():isInWorld(name:upper()) then
-        getBot():warp(name, door)
-        sleep(2000)
-    end
-    return true
-end
-
-function findItem(item_id)
-    return getBot():getInventory():getItemCount(item_id)
-end
-
 function find_path(tile_x, tile_y)
-    _G.last_x = tile_x
-    _G.last_y = tile_y
-
     getBot():findPath(tile_x, tile_y)
     while not getBot():isInTile(tile_x, tile_y) do
-        sleep(100)
+        dynamic_sleep(1000)
         getBot():findPath(tile_x, tile_y)
     end
-    return true
+end
+getBot().collect_range = 2
+
+function NearFossil()
+    for _, tile in pairs(getTiles()) do
+        if tile.fg == 3918 then
+            if #getBot():getPath(tile.x, tile.y - 1) > 0 then
+                find_path(tile.x, tile.y - 1)
+                return tile.x, tile.y
+            else
+                for y = 0, tile.y - 1 do
+                    if getTile(tile.x, y).fg > 0 then
+                        find_path(tile.x, y - 1)
+                        while getTile(tile.x, y).fg > 0 do
+                            getBot():hit(tile.x, y)
+                            dynamic_sleep(270)
+                        end
+                        find_path(tile.x, y)
+                    end
+                end
+                return tile.x, tile.y
+            end
+        end
+    end
 end
 
-function plant()
-    tree[_G.current_farm] = 0
+function PryFossil(tile_x, tile_y)
+    tries = 0
+    while getTile(tile_x, tile_y).flags ~= 64 do
+        print(getTile(tile_x, tile_y).flags)
+        tries = tries + 1
+        getBot():hit(tile_x, tile_y)
+        dynamic_sleep(800)
+        if tries >= 10 then
+            dynamic_sleep(5000)
+            tries = 0
+        end
+    end
+end
 
-    if modePlant == "UP" then
-        start = 53
-        ends = 0
-        step = -1
-    else
-        start = 0
-        ends = 53
-        step = 1
+function GougeFossil(tile_x, tile_y)
+    while getTile(tile_x, tile_y).fg == 3918 do
+        getBot():hit(tile_x, tile_y)
+        dynamic_sleep(500)
+    end
+end
+
+function take_item()
+    getBot():warp(storage.name, storage.door)
+    while not getBot():isInWorld(storage.name:upper()) do
+        dynamic_sleep(1000)
     end
 
+    for _, object in pairs(getObjects()) do
+        if (object.id == 3932 and getInventory():getItemCount(3932) == 0) or (object.id == 3934 and getInventory():getItemCount(3934) == 0) or (object.id == 4132) then
+            local obj_x = object.x // 32
+            local obj_y = object.y // 32
 
-    plant1 = 1
-    plant2 = 98
-    plant3 = 1
-    intiles = 0
-    ismes = 2
-
-    for height = start, ends, step do
-        reconnect()
-        for width = plant1, plant2, plant3 do
-            reconnect()
-
-            if findItem(itmSeed) == 0 or (spliceSeed and findItem(itmSeed2) ~= findItem(itmSeed)) or (useSpray and findItem(idSpray) ~= findItem(itmSeed2)) then
-                takeItems(itmSeed)
-                if spliceSeed and findItem(itmSeed2) ~= findItem(itmSeed) then
-                    takeItems(itmSeed2)
+            if #getBot():getPath(obj_x, obj_y) > 0 then
+                find_path(obj_x, obj_y)
+                dynamic_sleep(100)
+                while not getBot():isInTile(obj_x, obj_y) do
+                    find_path(obj_x, obj_y)
+                    dynamic_sleep(5000)
                 end
-                if useSpray and findItem(idSpray) ~= findItem(itmSeed2) then
-                    takeItems(idSpray)
-                end
-                warp(_G.current_farm, _G.current_door)
-            end
-
-            if getTile(width, height).fg == 0 and isPlantable(getTile(width, height)) and getBot():hasAccess(width + 1, plant) > 0 and findItem(itmSeed) > 0 and getLocal().posx // 32 == width and getLocal().posy // 32 == height and getBot():isInWorld(_G.current_farm:upper()) then
-                if find_path(width, height) then
-                    for i = 0, ismes, plant3 do
-                        tree[_G.current_farm] = tree[_G.current_farm] + 1
-
-                        while getTile(width + 1, height).fg == 0 and isPlantable(getTile(width + 1, height)) and getBot():hasAccess(width + 1, height) > 0 and findItem(itmSeed) > 0 and getLocal().posx // 32 == width and getLocal().posy // 32 == height and getBot():isInWorld(_G.current_farm:upper()) do
-                            place(itmSeed, i, 0)
-                            sleep(delayPlant)
-                            reconnect()
+            else
+                for i = -1, 1 do
+                    if #getBot():getPath(obj_x + i, obj_y) > 0 then
+                        find_path(obj_x + i, obj_y)
+                        dynamic_sleep(1500)
+                        while not getBot():isInTile(obj_x + i, obj_y) do
+                            find_path(obj_x + i, obj_y)
+                            dynamic_sleep(5000)
                         end
-
-                        if spliceSeed then
-                            while getTile(width + 1, height).fg == itmSeed and findItem(itmSeed2) > 0 and getLocal().posx // 32 == width and getLocal().posy // 32 == height and getBot():isInWorld(_G.current_farm:upper()) and not getTile(width + 1, height):canHarvest() do
-                                place(itmSeed2, i, 0)
-                                sleep(delayPlant)
-                                reconnect()
-                            end
-                        end
-
-                        if useSpray then
-                            while not getTile(width + 1, height):canHarvest() and findItem(idSpray) > 0 and getLocal().posx // 32 == width and getLocal().posy // 32 == height and getBot():isInWorld(_G.current_farm:upper()) do
-                                place(idSpray, i, 0)
-                                sleep(delayPlant)
-                                reconnect()
-                            end
-                        end
+                        break
                     end
                 end
             end
-        end
+            dynamic_sleep(1000)
+            getBot():collectObject(object.oid, 3)
+            dynamic_sleep(5000)
 
-        if intiles == 1 then
-            if plant1 == 98 then
-                plant1 = 1
-                plant2 = 98
-                plant3 = 1
-                ismes = 2
-                intiles = 0
-            elseif plant1 == 1 then
-                plant1 = 98
-                plant2 = 1
-                plant3 = -1
-                ismes = -2
-                intiles = 0
+            if object.id == 3932 then
+                getBot():drop(3932, getInventory():getItemCount(3932) - 1)
+                dynamic_sleep(5000)
+            elseif object.id == 3934 then
+                getBot():drop(3934, getInventory():getItemCount(3934) - 1)
+                dynamic_sleep(5000)
             end
-        else
-            intiles = intiles + 1
         end
     end
 end
 
-function takeItems(item)
-    if warp(worldSeed, doorStorage) then
-        if item == itmSeed2 then
-            count = findItem(itmSeed)
-        elseif item == idSpray then
-            count = findItem(itmSeed2)
-        end
-
-        for _, object in pairs(getObjects()) do
-            if obj.id == item then
-                find_path(round(obj.x / 32), math.floor(obj.y / 32))
-                sleep(100)
-                getBot():collectObject(obj.oid, 3)
-                sleep(1000)
-            end
-
-            if item == itmSeed and findItem(item) > 0 then
-                break
-            elseif (item == itmSeed2 or item == idSpray) and findItem(item) >= count then
-                break
+function scan_item(item_id, param)
+    if param then
+        for id, count in pairs(getBot():getWorld().growscan:getTiles()) do
+            if id == item_id then
+                return count
             end
         end
-
-        getBot():moveLeft(1)
-        sleep(50)
-        getBot():setDirection(false)
-        sleep(100)
-
-        if (item == itmSeed2 or item == idSpray) and findItem(item) > count then
-            while findItem(item) > 0 do
-                reconnect()
-                getBot():findOutput()
-                sleep(700)
-                getBot():fastDrop(item, findItem(item) - count)
-                sleep(300)
-            end
+        return 0
+    end
+    for id, count in pairs(getBot():getWorld().growscan:getObjects()) do
+        if id == item_id then
+            return count
         end
+    end
+
+
+    return 0
+end
+
+function useHammer()
+    getBot():wear(3932)
+    sleep(200)
+    while not getInventory():getItem(3932).isActive do
+        getBot():wear(3932)
+        dynamic_sleep(2500)
+    end
+end
+
+function useChisel()
+    getBot():wear(3934)
+    sleep(200)
+    while not getInventory():getItem(3934).isActive do
+        getBot():wear(3934)
+        dynamic_sleep(2500)
+    end
+end
+
+function unuseChisel()
+    while getInventory():getItem(3934).isActive do
+        getBot():unwear(3934)
+        dynamic_sleep(2500)
+    end
+end
+
+function get_fossils()
+    if getBot():getInventory():getItemCount(4132) == 0 then
+        take_item()
+        getBot():warp(_G.worlds, _G.door)
+        while not getBot():isInWorld(_G.worlds:upper()) do
+            dynamic_sleep(1000)
+        end
+    end
+    tile_x, tile_y = NearFossil()
+    getBot():say("Found At " .. tile_x .. ":" .. tile_y)
+    find_path(tile_x, tile_y - 1)
+    useHammer()
+    PryFossil(tile_x, tile_y)
+    useChisel()
+    GougeFossil(tile_x, tile_y)
+
+    if polished then
+        while scan_item(3936) > 0 do
+            getBot:place(tile_x, tile_y, 4132)
+            dynamic_sleep(3000)
+        end
+
+        getBot().auto_collect = true
+        dynamic_sleep(1000)
+        getBot().auto_collect = false
     else
-        print(worldSeed .. " Nuked")
+        getBot().auto_collect = true
+        dynamic_sleep(1000)
+        getBot().auto_collect = false
     end
 end
 
-function formatTime(seconds)
-    if type(seconds) == "string" then
-        return "..."
-    end
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    local secs = seconds % 60
+function dynamic_sleep(ms)
+    local ping = getBot():getPing()
 
-    if hours > 0 then
-        return string.format("%d Hours %d Minutes %d Seconds", hours, minutes, secs)
-    else
-        return string.format("%d Minutes %d Seconds", minutes, secs)
+    sleep_amount = math.floor(ping * 0.10 * (ms * 0.10))
+    if sleep_amount <= 170 then
+        sleep_amount = sleep_amount + math.random(100, ms)
     end
+    sleep(sleep_amount)
 end
 
-function goPlant()
-    if not _G.nuked then
-        sleep(100)
-        startTime = os.time()
-        plant()
-        startTime = os.difftime(os.time(), startTime)
-        waktu[_G.current_farm] = formatTime(startTime)
-    else
-        waktu[_G.current_farm] = "NUKED"
-        tree[world] = "NUKED"
-
-        _G.nuked = false
+function save_fossils()
+    getBot():warp(save_world.name, save_world.door)
+    dynamic_sleep(100)
+    while not getBot():isInWorld(save_world.name:upper()) do
+        dynamic_sleep(1000)
+    end
+    item = (function() if polished then return 4134 else return 3936 end end)()
+    while getBot():getInventory():getItemCount(item) > 0 do
+        getBot():drop(item, getBot():getInventory():getItemCount(item))
+        dynamic_sleep(3000)
     end
 end
 
-for i = indexBot, 1, -1 do
-    sleep(delayExe)
-end
-
-if farmPerBot > 0 then
-    startData = (indexBot - 1) * farmPerBot + 1
-    endData = startData + farmPerBot - 1
-end
-
-if farmPerBot == 0 then
-    for _, plants in pairs(listWorld) do
-        if plants then
-            data = split(plants, ":")
-
-            if #data == 2 then
-                _G.current_farm = data[1]
-                _G.current_door = data[2]
-
-                if #worldListBot == 5 then
-                    worldListBot = {}
-                    waktu = {}
-                    tree = {}
-                end
-
-                table.insert(worldListBot, _G.current_farm)
-                _G.nuked = warp(_G.current_farm, _G.current_door)
-
-                totalFarm = totalFarm + 1
-                goPlant()
-                append(resultFile .. getBot().index .. ".txt", plants .. "\n")
-            else
-                print(plants .. " Not Valid Format")
-            end
+function main_script()
+    getBot():warp("AKSDJLADJSLAJDLSJ")
+    sleep(1000)
+    for _, item in pairs({ 4132, 3932, 3934 }) do
+        if (getInventory():getItemCount(item) == 0 and item ~= 4132) or (item == 4132 and polished and getInventory():getItemCount(item) == 0) then
+            take_item()
         end
     end
-else
-    for datas = startData, endData do
-        FarmList = listWorld[datas]
-        if FarmList then
-            data = split(FarmList, ":")
+    for world in io.lines(list_world) do
+        _G.worlds, _G.door = world:match("([^|]+)|([^|]+)")
 
-            if #data == 2 then
-                _G.current_farm = data[1]
-                _G.current_door = data[2]
-
-                if #worldListBot == 5 then
-                    worldListBot = {}
-                    waktu = {}
-                    tree = {}
-                end
-
-                table.insert(worldListBot, _G.current_farm)
-                _G.nuked = warp(_G.current_farm, _G.current_door)
-
-                totalFarm = totalFarm + 1
-                goPlant()
-                append(resultFile .. getBot().index .. ".txt", FarmList .. "\n")
-            else
-                print(FarmList .. " Not Valid Format")
+        print(_G.worlds, door)
+        getBot():warp(_G.worlds, door)
+        while not getBot():isInWorld(_G.worlds:upper()) do
+            dynamic_sleep(1000)
+        end
+        if scan_item(3918, true) > 0 then
+            for i = 1, scan_item(3918, true) do
+                get_fossils()
             end
+            unuseChisel()
+            save_fossils()
         end
     end
+    getBot().auto_reconnect = false
+    getBot():disconnect()
 end
+
+main_script()
