@@ -328,8 +328,8 @@ end
 
 function infoBot(status)
     local wb = Webhook.new(webhookInfo)
-    wb.username = "Versatile"
-    wb.avatar_url = "https://cdn.discordapp.com/attachments/1241741097819181199/1258375809786183700/ABCBCAC3-59B3-47E4-AECF-392495BF9825.png?ex=6687d14c&is=66867fcc&hm=2357e2bb9ba4a069509c95e4773675ad13bc0b0ab983a9d7be3be908bc49e8bd&"
+    wb.username = "SYNCODE"
+    wb.avatar_url = "https://cdn.discordapp.com/attachments/1180523579381665933/1180577805403181076/20231203_013427.png"
     wb.content = status
     wb:send()
 end
