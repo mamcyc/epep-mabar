@@ -167,6 +167,16 @@ function main(bot, tables, Bot_Settings, Script_Settings)
         end
     end
 
+    function dynamic_sleep(ms)
+        local ping = getBot():getPing()
+    
+        sleep_amount = math.floor(ping * 0.10 * (ms * 0.10))
+        if sleep_amount <= 170 then
+            sleep_amount = sleep_amount + math.random(50, ms)
+        end
+        sleep(sleep_amount)
+    end
+
     function reconnect()
         getBot():setSkin(math.random(1, 6))
         if getBot().status ~= BotStatus.online then
